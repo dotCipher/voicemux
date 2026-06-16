@@ -32,6 +32,7 @@ Avoid:
 - `README.md`: public positioning and quick overview.
 - `ROADMAP.md`: implementation phases and priorities.
 - `docs/ARCHITECTURE.md`: system design and boundaries.
+- `docs/INSTALL.md`: install, release, and service-management workflow.
 - `docs/PROVIDERS.md`: provider strategy and adapter tiers.
 - `docs/RUNNING.md`: local operation and testing checklist.
 - `docs/STACK.md`: Rust stack and performance choices.

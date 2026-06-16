@@ -227,6 +227,7 @@ Current docs:
 
 - [`ROADMAP.md`](ROADMAP.md)
 - [`docs/ARCHITECTURE.md`](docs/ARCHITECTURE.md)
+- [`docs/INSTALL.md`](docs/INSTALL.md)
 - [`docs/PROVIDERS.md`](docs/PROVIDERS.md)
 - [`docs/RUNNING.md`](docs/RUNNING.md)
 - [`docs/STACK.md`](docs/STACK.md)

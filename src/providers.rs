@@ -42,10 +42,13 @@ impl ProviderAdapter {
     }
 
     pub fn descriptor(&self) -> ProviderDescriptor {
-        match self {
+        let mut descriptor = match self {
             Self::OpenAi(adapter) => adapter.descriptor(),
             Self::DeepgramStt(adapter) | Self::ElevenlabsTts(adapter) => adapter.descriptor(),
-        }
+        };
+        descriptor.supports_stt = self.supports_modality(Modality::Stt);
+        descriptor.supports_tts = self.supports_modality(Modality::Tts);
+        descriptor
     }
 
     pub fn supports_modality(&self, modality: Modality) -> bool {
@@ -275,14 +278,6 @@ pub fn build_provider_adapters(
         .collect()
 }
 
-pub fn provider_descriptors(
-    config: &VoicemuxConfig,
-) -> Result<Vec<ProviderDescriptor>, ProviderError> {
-    Ok(provider_descriptors_from_adapters(
-        &build_provider_adapters(config)?,
-    ))
-}
-
 pub fn provider_descriptors_from_adapters(
     adapters: &BTreeMap<String, ProviderAdapter>,
 ) -> Vec<ProviderDescriptor> {
@@ -335,7 +330,8 @@ mod tests {
     #[test]
     fn returns_provider_descriptors() {
         let config = example_config();
-        let descriptors = provider_descriptors(&config).expect("descriptors should build");
+        let adapters = build_provider_adapters(&config).expect("adapters should build");
+        let descriptors = provider_descriptors_from_adapters(&adapters);
         let speaches = descriptors
             .iter()
             .find(|provider| provider.name == "speaches")
