@@ -77,6 +77,27 @@ impl ProviderAdapter {
             }
         }
     }
+
+    pub fn openai_audio_transcriptions_endpoint(&self) -> Result<OpenAiEndpoint, ProviderError> {
+        match self {
+            Self::OpenAi(adapter) if adapter.supports_modality(Modality::Stt) => {
+                Ok(OpenAiEndpoint {
+                    url: format!("{}/audio/transcriptions", adapter.base_url),
+                    authorization: adapter.authorization()?,
+                })
+            }
+            Self::OpenAi(adapter) => Err(ProviderError::UnsupportedPassthrough {
+                provider: adapter.name.clone(),
+                endpoint: "/v1/audio/transcriptions",
+            }),
+            Self::DeepgramStt(adapter) | Self::ElevenlabsTts(adapter) => {
+                Err(ProviderError::UnsupportedPassthrough {
+                    provider: adapter.name.clone(),
+                    endpoint: "/v1/audio/transcriptions",
+                })
+            }
+        }
+    }
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -315,6 +336,39 @@ providers:
             error,
             ProviderError::UnsupportedPassthrough { provider, endpoint }
                 if provider == "elevenlabs" && endpoint == "/v1/audio/speech"
+        ));
+    }
+
+    #[test]
+    fn builds_openai_transcriptions_endpoint() {
+        let config = example_config();
+        let adapters = build_provider_adapters(&config).expect("adapters should build");
+        let endpoint = adapters["local_whisper"]
+            .openai_audio_transcriptions_endpoint()
+            .expect("transcriptions endpoint should build");
+
+        assert_eq!(
+            endpoint.url,
+            "http://127.0.0.1:2022/v1/audio/transcriptions"
+        );
+        assert_eq!(
+            endpoint.authorization.as_deref(),
+            Some("Bearer not-needed-but-openai-sdks-require-a-value")
+        );
+    }
+
+    #[test]
+    fn rejects_native_transcriptions_passthrough() {
+        let config = example_config();
+        let adapters = build_provider_adapters(&config).expect("adapters should build");
+        let error = adapters["deepgram"]
+            .openai_audio_transcriptions_endpoint()
+            .expect_err("native endpoint should not build yet");
+
+        assert!(matches!(
+            error,
+            ProviderError::UnsupportedPassthrough { provider, endpoint }
+                if provider == "deepgram" && endpoint == "/v1/audio/transcriptions"
         ));
     }
 }

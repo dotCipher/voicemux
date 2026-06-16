@@ -1,5 +1,7 @@
+use axum::extract::Multipart;
 use axum::http::{header, HeaderMap, HeaderValue, StatusCode};
 use axum::response::{IntoResponse, Response};
+use reqwest::multipart::{Form, Part};
 use reqwest::Client;
 use serde::{Deserialize, Serialize};
 use serde_json::Value;
@@ -85,6 +87,153 @@ pub async fn proxy_speech(
         .into_response())
 }
 
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct TranscriptionField {
+    pub name: String,
+    pub file_name: Option<String>,
+    pub content_type: Option<String>,
+    pub bytes: Vec<u8>,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct TranscriptionRequest {
+    pub fields: Vec<TranscriptionField>,
+}
+
+impl TranscriptionRequest {
+    pub async fn from_multipart(mut multipart: Multipart) -> Result<Self, OpenAiProxyError> {
+        let mut fields = Vec::new();
+
+        while let Some(field) = multipart.next_field().await? {
+            let name = field
+                .name()
+                .ok_or(OpenAiProxyError::MissingMultipartFieldName)?
+                .to_string();
+            let file_name = field.file_name().map(ToOwned::to_owned);
+            let content_type = field.content_type().map(ToOwned::to_owned);
+            let bytes = field.bytes().await?.to_vec();
+
+            fields.push(TranscriptionField {
+                name,
+                file_name,
+                content_type,
+                bytes,
+            });
+        }
+
+        Ok(Self { fields })
+    }
+
+    fn text_field(&self, name: &str) -> Option<String> {
+        self.fields
+            .iter()
+            .find(|field| field.name == name && field.file_name.is_none())
+            .and_then(|field| std::str::from_utf8(&field.bytes).ok())
+            .map(ToOwned::to_owned)
+    }
+
+    fn into_form(self, model: Option<String>) -> Result<Form, OpenAiProxyError> {
+        let mut form = Form::new();
+        let mut inserted_model = false;
+
+        for field in self.fields {
+            if field.name == "profile" {
+                continue;
+            }
+
+            if field.name == "model" {
+                if let Some(model) = &model {
+                    form = form.text("model", model.clone());
+                    inserted_model = true;
+                }
+                continue;
+            }
+
+            form = form.part(field.name.clone(), multipart_part(field)?);
+        }
+
+        if !inserted_model {
+            if let Some(model) = model {
+                form = form.text("model", model);
+            }
+        }
+
+        Ok(form)
+    }
+}
+
+pub async fn proxy_transcription(
+    config: &VoicemuxConfig,
+    request: TranscriptionRequest,
+) -> Result<Response, OpenAiProxyError> {
+    let route_request = RouteRequest {
+        modality: Modality::Stt,
+        profile: request.text_field("profile"),
+        model: request.text_field("model"),
+        voice: None,
+        response_format: request.text_field("response_format"),
+    };
+    let plan = plan_route(config, route_request)?;
+
+    let adapters = build_provider_adapters(config)?;
+    let adapter = adapters
+        .get(&plan.selected_provider)
+        .ok_or_else(|| RouteError::UnknownProvider(plan.selected_provider.clone()))?;
+    let endpoint = adapter.openai_audio_transcriptions_endpoint()?;
+    let form = request.into_form(plan.resolved_model)?;
+
+    let client = Client::new();
+    let mut builder = client.post(endpoint.url).multipart(form);
+
+    if let Some(authorization) = endpoint.authorization {
+        builder = builder.header(header::AUTHORIZATION.as_str(), authorization);
+    }
+
+    let upstream_response = builder.send().await?;
+    let status = upstream_response.status();
+    let content_type = upstream_response
+        .headers()
+        .get(header::CONTENT_TYPE.as_str())
+        .cloned();
+    let body = upstream_response.bytes().await?;
+
+    let mut headers = HeaderMap::new();
+    if let Some(content_type) = content_type {
+        headers.insert(
+            header::CONTENT_TYPE,
+            HeaderValue::from_bytes(content_type.as_bytes())
+                .unwrap_or_else(|_| HeaderValue::from_static("application/json")),
+        );
+    }
+
+    Ok((
+        StatusCode::from_u16(status.as_u16()).unwrap_or(StatusCode::BAD_GATEWAY),
+        headers,
+        body,
+    )
+        .into_response())
+}
+
+fn multipart_part(field: TranscriptionField) -> Result<Part, OpenAiProxyError> {
+    let mut part = if field.file_name.is_some() {
+        Part::bytes(field.bytes)
+    } else if let Ok(value) = String::from_utf8(field.bytes.clone()) {
+        Part::text(value)
+    } else {
+        Part::bytes(field.bytes)
+    };
+
+    if let Some(file_name) = field.file_name {
+        part = part.file_name(file_name);
+    }
+
+    if let Some(content_type) = field.content_type {
+        part = part.mime_str(&content_type)?;
+    }
+
+    Ok(part)
+}
+
 #[derive(Debug, thiserror::Error)]
 pub enum OpenAiProxyError {
     #[error(transparent)]
@@ -93,12 +242,22 @@ pub enum OpenAiProxyError {
     Provider(#[from] ProviderError),
     #[error("upstream request failed: {0}")]
     Upstream(#[from] reqwest::Error),
+    #[error("multipart request failed: {0}")]
+    Multipart(#[from] axum::extract::multipart::MultipartError),
+    #[error("multipart field is missing a name")]
+    MissingMultipartFieldName,
+    #[error("invalid multipart content type: {0}")]
+    MultipartContentType(#[from] reqwest::header::InvalidHeaderValue),
 }
 
 impl OpenAiProxyError {
     pub fn status_code(&self) -> StatusCode {
         match self {
-            Self::Route(_) | Self::Provider(_) => StatusCode::BAD_REQUEST,
+            Self::Route(_)
+            | Self::Provider(_)
+            | Self::Multipart(_)
+            | Self::MissingMultipartFieldName
+            | Self::MultipartContentType(_) => StatusCode::BAD_REQUEST,
             Self::Upstream(_) => StatusCode::BAD_GATEWAY,
         }
     }
@@ -108,6 +267,9 @@ impl OpenAiProxyError {
             Self::Route(_) => "invalid_route_request",
             Self::Provider(_) => "provider_configuration_error",
             Self::Upstream(_) => "upstream_error",
+            Self::Multipart(_)
+            | Self::MissingMultipartFieldName
+            | Self::MultipartContentType(_) => "invalid_multipart_request",
         }
     }
 }
@@ -147,5 +309,28 @@ mod tests {
         assert_eq!(json["model"], "tts-1");
         assert_eq!(json["voice"], "alloy");
         assert!(json.get("profile").is_none());
+    }
+
+    #[test]
+    fn transcription_request_extracts_text_fields() {
+        let request = TranscriptionRequest {
+            fields: vec![
+                TranscriptionField {
+                    name: "model".to_string(),
+                    file_name: None,
+                    content_type: None,
+                    bytes: b"whisper-1".to_vec(),
+                },
+                TranscriptionField {
+                    name: "profile".to_string(),
+                    file_name: None,
+                    content_type: None,
+                    bytes: b"local".to_vec(),
+                },
+            ],
+        };
+
+        assert_eq!(request.text_field("model").as_deref(), Some("whisper-1"));
+        assert_eq!(request.text_field("profile").as_deref(), Some("local"));
     }
 }

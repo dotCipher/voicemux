@@ -207,7 +207,20 @@ Agents should run `cargo fmt` and `cargo test` before considering implementation
 
 ## Project Status
 
-Planning and prototyping.
+Early Rust prototype.
+
+Currently implemented:
+
+- YAML config parsing and validation.
+- Profile-based route planning.
+- Model and voice alias resolution.
+- `GET /health`.
+- `GET /v1/providers`.
+- `POST /v1/route/dry-run`.
+- Generic OpenAI-compatible `/v1/audio/speech` passthrough.
+- Generic OpenAI-compatible `/v1/audio/transcriptions` passthrough.
+
+Native Deepgram and ElevenLabs adapters are planned but not implemented yet.
 
 Current docs:
 

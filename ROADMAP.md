@@ -22,7 +22,7 @@ It should provide:
 
 Goal: make the project clear, scoped, and credible before implementation.
 
-Status: in progress.
+Status: mostly complete; implementation is now underway.
 
 Deliverables:
 
@@ -43,6 +43,8 @@ Non-goals:
 ## Phase 1: Rust HTTP Router MVP
 
 Goal: prove fast OpenAI-compatible STT/TTS routing with generic backends.
+
+Status: in progress. Config loading, route planning, provider descriptors, dry-run routing, and generic OpenAI-compatible STT/TTS passthrough scaffolding are implemented.
 
 Core endpoints:
 
