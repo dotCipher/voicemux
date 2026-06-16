@@ -197,13 +197,10 @@ mod tests {
         )
         .expect("route should plan");
 
-        assert_eq!(plan.route, vec!["speaches", "local_kokoro"]);
-        assert_eq!(plan.selected_provider, "speaches");
-        assert_eq!(
-            plan.resolved_model.as_deref(),
-            Some("speaches-ai/Kokoro-82M-v1.0-ONNX")
-        );
-        assert_eq!(plan.resolved_voice.as_deref(), Some("af_heart"));
+        assert_eq!(plan.route, vec!["local_kokoro"]);
+        assert_eq!(plan.selected_provider, "local_kokoro");
+        assert_eq!(plan.resolved_model.as_deref(), Some("tts-1"));
+        assert_eq!(plan.resolved_voice.as_deref(), Some("af_sky"));
     }
 
     #[test]

@@ -44,7 +44,7 @@ Non-goals:
 
 Goal: prove fast OpenAI-compatible STT/TTS routing with generic backends.
 
-Status: in progress. Config loading, route planning, provider descriptors, dry-run routing, generic OpenAI-compatible STT/TTS passthrough scaffolding, and selected-route response headers are implemented.
+Status: in progress. Config loading, route planning, provider descriptors, dry-run routing, generic OpenAI-compatible STT/TTS passthrough scaffolding, native Deepgram STT / ElevenLabs TTS translation, and selected-route response headers are implemented.
 
 Core endpoints:
 

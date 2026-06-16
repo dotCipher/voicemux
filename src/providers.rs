@@ -179,6 +179,13 @@ impl OpenAiAdapter {
 pub struct NativeAdapter {
     name: String,
     provider_type: ProviderType,
+    api_key_env: Option<String>,
+    api_key: Option<String>,
+    model: Option<String>,
+    language: Option<String>,
+    output_format: Option<String>,
+    smart_format: Option<bool>,
+    punctuate: Option<bool>,
     tags: Vec<String>,
 }
 
@@ -187,8 +194,54 @@ impl NativeAdapter {
         Self {
             name: name.to_string(),
             provider_type,
+            api_key_env: config.api_key_env.clone(),
+            api_key: config.api_key.clone(),
+            model: config.model.clone(),
+            language: config.language.clone(),
+            output_format: config.output_format.clone(),
+            smart_format: config.smart_format,
+            punctuate: config.punctuate,
             tags: config.tags.clone(),
         }
+    }
+
+    pub fn api_key(&self) -> Result<String, ProviderError> {
+        if let Some(api_key) = &self.api_key {
+            return Ok(api_key.clone());
+        }
+
+        let Some(env_name) = &self.api_key_env else {
+            return Err(ProviderError::MissingApiKey(self.name.clone()));
+        };
+
+        std::env::var(env_name).map_err(|_| ProviderError::MissingApiKeyEnv {
+            provider: self.name.clone(),
+            env_name: env_name.clone(),
+        })
+    }
+
+    pub fn name(&self) -> &str {
+        &self.name
+    }
+
+    pub fn model(&self) -> Option<&str> {
+        self.model.as_deref()
+    }
+
+    pub fn language(&self) -> Option<&str> {
+        self.language.as_deref()
+    }
+
+    pub fn output_format(&self) -> Option<&str> {
+        self.output_format.as_deref()
+    }
+
+    pub fn smart_format(&self) -> Option<bool> {
+        self.smart_format
+    }
+
+    pub fn punctuate(&self) -> Option<bool> {
+        self.punctuate
     }
 
     fn supports_modality(&self, modality: Modality) -> bool {
@@ -239,6 +292,8 @@ fn normalize_base_url(base_url: &str) -> String {
 pub enum ProviderError {
     #[error("provider '{0}' requires base_url")]
     MissingBaseUrl(String),
+    #[error("provider '{0}' requires api_key or api_key_env")]
+    MissingApiKey(String),
     #[error("provider '{provider}' requires environment variable '{env_name}'")]
     MissingApiKeyEnv { provider: String, env_name: String },
     #[error("provider '{provider}' does not support passthrough endpoint '{endpoint}'")]

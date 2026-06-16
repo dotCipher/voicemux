@@ -2,6 +2,7 @@ mod config;
 mod openai;
 mod providers;
 mod routing;
+mod state;
 
 use std::net::SocketAddr;
 use std::path::PathBuf;
@@ -22,6 +23,7 @@ use crate::openai::{
 };
 use crate::providers::provider_descriptors;
 use crate::routing::{plan_route, RouteRequest};
+use crate::state::AppState;
 
 #[derive(Debug, Parser)]
 #[command(version, about)]
@@ -42,7 +44,7 @@ async fn main() -> anyhow::Result<()> {
         .with_context(|| format!("failed to load config {}", args.config.display()))?;
 
     let addr = SocketAddr::new(config.server.host, config.server.port);
-    let app = app(config);
+    let app = app(AppState::new(config)?);
     let listener = TcpListener::bind(addr).await?;
 
     info!(%addr, "voicemux listening");
@@ -51,14 +53,14 @@ async fn main() -> anyhow::Result<()> {
     Ok(())
 }
 
-fn app(config: VoicemuxConfig) -> Router {
+fn app(state: AppState) -> Router {
     Router::new()
         .route("/health", get(health))
         .route("/v1/audio/transcriptions", post(transcription))
         .route("/v1/audio/speech", post(speech))
         .route("/v1/providers", get(list_providers))
         .route("/v1/route/dry-run", post(dry_run_route))
-        .with_state(config)
+        .with_state(state)
 }
 
 async fn health() -> Json<serde_json::Value> {
@@ -69,9 +71,9 @@ async fn health() -> Json<serde_json::Value> {
 }
 
 async fn list_providers(
-    State(config): State<VoicemuxConfig>,
+    State(state): State<AppState>,
 ) -> Result<Json<serde_json::Value>, (StatusCode, Json<serde_json::Value>)> {
-    provider_descriptors(&config)
+    provider_descriptors(&state.config)
         .map(|providers| Json(json!({ "data": providers })))
         .map_err(|error| {
             (
@@ -87,30 +89,30 @@ async fn list_providers(
 }
 
 async fn speech(
-    State(config): State<VoicemuxConfig>,
+    State(state): State<AppState>,
     Json(request): Json<SpeechRequest>,
 ) -> Result<axum::response::Response, (StatusCode, Json<serde_json::Value>)> {
-    proxy_speech(&config, request).await.map_err(error_response)
+    proxy_speech(&state, request).await.map_err(error_response)
 }
 
 async fn transcription(
-    State(config): State<VoicemuxConfig>,
+    State(state): State<AppState>,
     multipart: Multipart,
 ) -> Result<axum::response::Response, (StatusCode, Json<serde_json::Value>)> {
     let request = TranscriptionRequest::from_multipart(multipart)
         .await
         .map_err(error_response)?;
 
-    proxy_transcription(&config, request)
+    proxy_transcription(&state, request)
         .await
         .map_err(error_response)
 }
 
 async fn dry_run_route(
-    State(config): State<VoicemuxConfig>,
+    State(state): State<AppState>,
     Json(request): Json<RouteRequest>,
 ) -> Result<Json<serde_json::Value>, (StatusCode, Json<serde_json::Value>)> {
-    plan_route(&config, request)
+    plan_route(&state.config, request)
         .map(|plan| Json(json!(plan)))
         .map_err(|error| {
             (

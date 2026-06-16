@@ -34,7 +34,9 @@ Avoid:
 - `docs/ARCHITECTURE.md`: system design and boundaries.
 - `docs/PROVIDERS.md`: provider strategy and adapter tiers.
 - `docs/STACK.md`: Rust stack and performance choices.
+- `docs/VOICEMODE.md`: VoiceMode setup and profile/voice mapping guidance.
 - `examples/voicemux.yaml`: canonical example config used by tests.
+- `examples/voicemode.env`: VoiceMode environment example pointing at voicemux.
 - `src/config.rs`: typed config parsing and validation.
 - `src/routing.rs`: route planning, model aliases, and voice aliases.
 - `src/providers.rs`: provider adapter descriptors and factories.

@@ -219,9 +219,9 @@ Currently implemented:
 - `POST /v1/route/dry-run`.
 - Generic OpenAI-compatible `/v1/audio/speech` passthrough.
 - Generic OpenAI-compatible `/v1/audio/transcriptions` passthrough.
+- Native Deepgram STT translation.
+- Native ElevenLabs TTS translation.
 - `X-Voicemux-*` response headers for selected profile/provider/route metadata.
-
-Native Deepgram and ElevenLabs adapters are planned but not implemented yet.
 
 Current docs:
 
@@ -229,6 +229,7 @@ Current docs:
 - [`docs/ARCHITECTURE.md`](docs/ARCHITECTURE.md)
 - [`docs/PROVIDERS.md`](docs/PROVIDERS.md)
 - [`docs/STACK.md`](docs/STACK.md)
+- [`docs/VOICEMODE.md`](docs/VOICEMODE.md)
 - [`examples/voicemux.yaml`](examples/voicemux.yaml)
 
 ## Repository Description

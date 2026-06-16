@@ -2,13 +2,14 @@ use axum::extract::Multipart;
 use axum::http::{header, HeaderMap, HeaderValue, StatusCode};
 use axum::response::{IntoResponse, Response};
 use reqwest::multipart::{Form, Part};
-use reqwest::Client;
+use reqwest::Url;
 use serde::{Deserialize, Serialize};
 use serde_json::Value;
 
-use crate::config::{Modality, VoicemuxConfig};
-use crate::providers::{build_provider_adapters, ProviderError};
+use crate::config::Modality;
+use crate::providers::{NativeAdapter, ProviderAdapter, ProviderError};
 use crate::routing::{plan_route, RouteError, RoutePlan, RouteRequest};
+use crate::state::AppState;
 
 #[derive(Debug, Clone, Deserialize, Serialize, PartialEq)]
 pub struct SpeechRequest {
@@ -26,11 +27,11 @@ pub struct SpeechRequest {
 }
 
 pub async fn proxy_speech(
-    config: &VoicemuxConfig,
+    state: &AppState,
     request: SpeechRequest,
 ) -> Result<Response, OpenAiProxyError> {
     let plan = plan_route(
-        config,
+        &state.config,
         RouteRequest {
             modality: Modality::Tts,
             profile: request.profile.clone(),
@@ -40,10 +41,29 @@ pub async fn proxy_speech(
         },
     )?;
 
-    let adapters = build_provider_adapters(config)?;
-    let adapter = adapters
+    let adapter = state
+        .providers
         .get(&plan.selected_provider)
         .ok_or_else(|| RouteError::UnknownProvider(plan.selected_provider.clone()))?;
+    match adapter {
+        ProviderAdapter::OpenAi(_) => proxy_openai_speech(state, adapter, &plan, request).await,
+        ProviderAdapter::ElevenlabsTts(adapter) => {
+            proxy_elevenlabs_speech(state, adapter, &plan, request).await
+        }
+        ProviderAdapter::DeepgramStt(adapter) => Err(ProviderError::UnsupportedPassthrough {
+            provider: adapter.name().to_string(),
+            endpoint: "/v1/audio/speech",
+        }
+        .into()),
+    }
+}
+
+async fn proxy_openai_speech(
+    state: &AppState,
+    adapter: &ProviderAdapter,
+    plan: &RoutePlan,
+    request: SpeechRequest,
+) -> Result<Response, OpenAiProxyError> {
     let endpoint = adapter.openai_audio_speech_endpoint()?;
 
     let upstream_request = SpeechRequest {
@@ -55,14 +75,72 @@ pub async fn proxy_speech(
         profile: None,
     };
 
-    let client = Client::new();
-    let mut builder = client.post(endpoint.url).json(&upstream_request);
+    let mut builder = state.client.post(endpoint.url).json(&upstream_request);
 
     if let Some(authorization) = endpoint.authorization {
         builder = builder.header(header::AUTHORIZATION.as_str(), authorization);
     }
 
     let upstream_response = builder.send().await?;
+    response_from_upstream(upstream_response, "application/octet-stream", plan).await
+}
+
+async fn proxy_elevenlabs_speech(
+    state: &AppState,
+    adapter: &NativeAdapter,
+    plan: &RoutePlan,
+    request: SpeechRequest,
+) -> Result<Response, OpenAiProxyError> {
+    let text = speech_input_text(request.input)?;
+    let voice = plan
+        .resolved_voice
+        .as_deref()
+        .ok_or_else(|| OpenAiProxyError::MissingVoice(adapter.name().to_string()))?;
+    let model = plan
+        .resolved_model
+        .as_deref()
+        .or_else(|| adapter.model())
+        .unwrap_or("eleven_turbo_v2_5");
+    let output_format = adapter.output_format().unwrap_or("mp3_44100_128");
+    let url = elevenlabs_speech_url(voice, output_format);
+
+    let upstream_response = state
+        .client
+        .post(url)
+        .header("xi-api-key", adapter.api_key()?)
+        .json(&serde_json::json!({
+            "text": text,
+            "model_id": model,
+        }))
+        .send()
+        .await?;
+
+    response_from_upstream(upstream_response, "audio/mpeg", plan).await
+}
+
+fn elevenlabs_speech_url(voice: &str, output_format: &str) -> String {
+    let mut url = Url::parse("https://api.elevenlabs.io/v1/text-to-speech")
+        .expect("static ElevenLabs URL should parse");
+    url.path_segments_mut()
+        .expect("ElevenLabs URL should support path segments")
+        .push(voice);
+    url.query_pairs_mut()
+        .append_pair("output_format", output_format);
+    url.to_string()
+}
+
+fn speech_input_text(input: Value) -> Result<String, OpenAiProxyError> {
+    match input {
+        Value::String(text) => Ok(text),
+        _ => Err(OpenAiProxyError::InvalidSpeechInput),
+    }
+}
+
+async fn response_from_upstream(
+    upstream_response: reqwest::Response,
+    fallback_content_type: &'static str,
+    plan: &RoutePlan,
+) -> Result<Response, OpenAiProxyError> {
     let status = upstream_response.status();
     let content_type = upstream_response
         .headers()
@@ -75,10 +153,15 @@ pub async fn proxy_speech(
         headers.insert(
             header::CONTENT_TYPE,
             HeaderValue::from_bytes(content_type.as_bytes())
-                .unwrap_or_else(|_| HeaderValue::from_static("application/octet-stream")),
+                .unwrap_or_else(|_| HeaderValue::from_static(fallback_content_type)),
+        );
+    } else {
+        headers.insert(
+            header::CONTENT_TYPE,
+            HeaderValue::from_static(fallback_content_type),
         );
     }
-    insert_route_headers(&mut headers, &plan);
+    insert_route_headers(&mut headers, plan);
 
     Ok((
         StatusCode::from_u16(status.as_u16()).unwrap_or(StatusCode::BAD_GATEWAY),
@@ -133,6 +216,12 @@ impl TranscriptionRequest {
             .map(ToOwned::to_owned)
     }
 
+    fn file_field(&self) -> Option<&TranscriptionField> {
+        self.fields
+            .iter()
+            .find(|field| field.name == "file" && field.file_name.is_some())
+    }
+
     fn into_form(self, model: Option<String>) -> Result<Form, OpenAiProxyError> {
         let mut form = Form::new();
         let mut inserted_model = false;
@@ -164,7 +253,7 @@ impl TranscriptionRequest {
 }
 
 pub async fn proxy_transcription(
-    config: &VoicemuxConfig,
+    state: &AppState,
     request: TranscriptionRequest,
 ) -> Result<Response, OpenAiProxyError> {
     let route_request = RouteRequest {
@@ -174,23 +263,94 @@ pub async fn proxy_transcription(
         voice: None,
         response_format: request.text_field("response_format"),
     };
-    let plan = plan_route(config, route_request)?;
+    let plan = plan_route(&state.config, route_request)?;
 
-    let adapters = build_provider_adapters(config)?;
-    let adapter = adapters
+    let adapter = state
+        .providers
         .get(&plan.selected_provider)
         .ok_or_else(|| RouteError::UnknownProvider(plan.selected_provider.clone()))?;
+    match adapter {
+        ProviderAdapter::OpenAi(_) => {
+            proxy_openai_transcription(state, adapter, &plan, request).await
+        }
+        ProviderAdapter::DeepgramStt(adapter) => {
+            proxy_deepgram_transcription(state, adapter, &plan, request).await
+        }
+        ProviderAdapter::ElevenlabsTts(adapter) => Err(ProviderError::UnsupportedPassthrough {
+            provider: adapter.name().to_string(),
+            endpoint: "/v1/audio/transcriptions",
+        }
+        .into()),
+    }
+}
+
+async fn proxy_openai_transcription(
+    state: &AppState,
+    adapter: &ProviderAdapter,
+    plan: &RoutePlan,
+    request: TranscriptionRequest,
+) -> Result<Response, OpenAiProxyError> {
     let endpoint = adapter.openai_audio_transcriptions_endpoint()?;
     let form = request.into_form(plan.resolved_model.clone())?;
 
-    let client = Client::new();
-    let mut builder = client.post(endpoint.url).multipart(form);
+    let mut builder = state.client.post(endpoint.url).multipart(form);
 
     if let Some(authorization) = endpoint.authorization {
         builder = builder.header(header::AUTHORIZATION.as_str(), authorization);
     }
 
     let upstream_response = builder.send().await?;
+    response_from_upstream(upstream_response, "application/json", plan).await
+}
+
+async fn proxy_deepgram_transcription(
+    state: &AppState,
+    adapter: &NativeAdapter,
+    plan: &RoutePlan,
+    request: TranscriptionRequest,
+) -> Result<Response, OpenAiProxyError> {
+    let response_format = request.text_field("response_format");
+    let language = request.text_field("language");
+    let file = request
+        .file_field()
+        .ok_or(OpenAiProxyError::MissingTranscriptionFile)?;
+    let mut params = Vec::new();
+
+    if let Some(model) = plan.resolved_model.as_deref().or_else(|| adapter.model()) {
+        params.push(("model", model.to_string()));
+    }
+
+    if let Some(language) = language.as_deref().or_else(|| adapter.language()) {
+        if language != "auto" {
+            params.push(("language", language.to_string()));
+        }
+    }
+
+    if let Some(smart_format) = adapter.smart_format() {
+        params.push(("smart_format", smart_format.to_string()));
+    }
+
+    if let Some(punctuate) = adapter.punctuate() {
+        params.push(("punctuate", punctuate.to_string()));
+    }
+
+    let url = deepgram_listen_url(&params);
+
+    let content_type = file
+        .content_type
+        .as_deref()
+        .unwrap_or("application/octet-stream");
+    let upstream_response = state
+        .client
+        .post(url)
+        .header(
+            header::AUTHORIZATION,
+            format!("Token {}", adapter.api_key()?),
+        )
+        .header(header::CONTENT_TYPE, content_type)
+        .body(file.bytes.clone())
+        .send()
+        .await?;
     let status = upstream_response.status();
     let content_type = upstream_response
         .headers()
@@ -198,22 +358,65 @@ pub async fn proxy_transcription(
         .cloned();
     let body = upstream_response.bytes().await?;
 
-    let mut headers = HeaderMap::new();
-    if let Some(content_type) = content_type {
-        headers.insert(
-            header::CONTENT_TYPE,
-            HeaderValue::from_bytes(content_type.as_bytes())
-                .unwrap_or_else(|_| HeaderValue::from_static("application/json")),
-        );
+    if !status.is_success() {
+        let mut headers = HeaderMap::new();
+        if let Some(content_type) = content_type {
+            headers.insert(
+                header::CONTENT_TYPE,
+                HeaderValue::from_bytes(content_type.as_bytes())
+                    .unwrap_or_else(|_| HeaderValue::from_static("application/json")),
+            );
+        } else {
+            headers.insert(
+                header::CONTENT_TYPE,
+                HeaderValue::from_static("application/json"),
+            );
+        }
+        insert_route_headers(&mut headers, plan);
+
+        return Ok((
+            StatusCode::from_u16(status.as_u16()).unwrap_or(StatusCode::BAD_GATEWAY),
+            headers,
+            body,
+        )
+            .into_response());
     }
-    insert_route_headers(&mut headers, &plan);
+
+    let deepgram_response: Value = serde_json::from_slice(&body)?;
+    let transcript = deepgram_transcript(&deepgram_response).unwrap_or_default();
+    let mut headers = HeaderMap::new();
+    insert_route_headers(&mut headers, plan);
+
+    if response_format.as_deref() == Some("text") {
+        headers.insert(header::CONTENT_TYPE, HeaderValue::from_static("text/plain"));
+        return Ok((StatusCode::OK, headers, transcript.to_string()).into_response());
+    }
+
+    headers.insert(
+        header::CONTENT_TYPE,
+        HeaderValue::from_static("application/json"),
+    );
 
     Ok((
-        StatusCode::from_u16(status.as_u16()).unwrap_or(StatusCode::BAD_GATEWAY),
+        StatusCode::OK,
         headers,
-        body,
+        serde_json::json!({ "text": transcript }).to_string(),
     )
         .into_response())
+}
+
+fn deepgram_listen_url(params: &[(&str, String)]) -> String {
+    let mut url =
+        Url::parse("https://api.deepgram.com/v1/listen").expect("static Deepgram URL should parse");
+    url.query_pairs_mut()
+        .extend_pairs(params.iter().map(|(key, value)| (*key, value.as_str())));
+    url.to_string()
+}
+
+fn deepgram_transcript(response: &Value) -> Option<&str> {
+    response
+        .pointer("/results/channels/0/alternatives/0/transcript")
+        .and_then(Value::as_str)
 }
 
 fn insert_route_headers(headers: &mut HeaderMap, plan: &RoutePlan) {
@@ -264,12 +467,20 @@ pub enum OpenAiProxyError {
     Provider(#[from] ProviderError),
     #[error("upstream request failed: {0}")]
     Upstream(#[from] reqwest::Error),
+    #[error("upstream response was not valid json: {0}")]
+    UpstreamJson(#[from] serde_json::Error),
     #[error("multipart request failed: {0}")]
     Multipart(#[from] axum::extract::multipart::MultipartError),
     #[error("multipart field is missing a name")]
     MissingMultipartFieldName,
     #[error("invalid multipart content type: {0}")]
     MultipartContentType(#[from] reqwest::header::InvalidHeaderValue),
+    #[error("speech input must be a string")]
+    InvalidSpeechInput,
+    #[error("speech request must include a resolved voice for provider '{0}'")]
+    MissingVoice(String),
+    #[error("transcription request must include a file field")]
+    MissingTranscriptionFile,
 }
 
 impl OpenAiProxyError {
@@ -279,8 +490,11 @@ impl OpenAiProxyError {
             | Self::Provider(_)
             | Self::Multipart(_)
             | Self::MissingMultipartFieldName
-            | Self::MultipartContentType(_) => StatusCode::BAD_REQUEST,
-            Self::Upstream(_) => StatusCode::BAD_GATEWAY,
+            | Self::MultipartContentType(_)
+            | Self::InvalidSpeechInput
+            | Self::MissingVoice(_)
+            | Self::MissingTranscriptionFile => StatusCode::BAD_REQUEST,
+            Self::Upstream(_) | Self::UpstreamJson(_) => StatusCode::BAD_GATEWAY,
         }
     }
 
@@ -288,10 +502,12 @@ impl OpenAiProxyError {
         match self {
             Self::Route(_) => "invalid_route_request",
             Self::Provider(_) => "provider_configuration_error",
-            Self::Upstream(_) => "upstream_error",
+            Self::Upstream(_) | Self::UpstreamJson(_) => "upstream_error",
             Self::Multipart(_)
             | Self::MissingMultipartFieldName
             | Self::MultipartContentType(_) => "invalid_multipart_request",
+            Self::InvalidSpeechInput | Self::MissingVoice(_) => "invalid_speech_request",
+            Self::MissingTranscriptionFile => "invalid_transcription_request",
         }
     }
 }
@@ -376,5 +592,48 @@ mod tests {
         assert_eq!(headers["x-voicemux-route"], "local_kokoro");
         assert_eq!(headers["x-voicemux-model"], "tts-1");
         assert_eq!(headers["x-voicemux-voice"], "af_sky");
+    }
+
+    #[test]
+    fn extracts_deepgram_transcript() {
+        let response = serde_json::json!({
+            "results": {
+                "channels": [{
+                    "alternatives": [{ "transcript": "hello world" }]
+                }]
+            }
+        });
+
+        assert_eq!(deepgram_transcript(&response), Some("hello world"));
+    }
+
+    #[test]
+    fn rejects_non_string_speech_input() {
+        let error = speech_input_text(serde_json::json!(["hello"])).expect_err("input should fail");
+
+        assert!(matches!(error, OpenAiProxyError::InvalidSpeechInput));
+    }
+
+    #[test]
+    fn builds_encoded_elevenlabs_url() {
+        let url = elevenlabs_speech_url("voice/id", "mp3_44100_128");
+
+        assert_eq!(
+            url,
+            "https://api.elevenlabs.io/v1/text-to-speech/voice%2Fid?output_format=mp3_44100_128"
+        );
+    }
+
+    #[test]
+    fn builds_encoded_deepgram_url() {
+        let url = deepgram_listen_url(&[
+            ("model", "nova 3".to_string()),
+            ("language", "en-US".to_string()),
+        ]);
+
+        assert_eq!(
+            url,
+            "https://api.deepgram.com/v1/listen?model=nova+3&language=en-US"
+        );
     }
 }

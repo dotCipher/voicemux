@@ -7,6 +7,10 @@ active_profile: hybrid
 
 profiles:
   local:
+    stt: [local_whisper]
+    tts: [local_kokoro]
+
+  local_model_server:
     stt: [speaches, local_whisper]
     tts: [speaches, local_kokoro]
 
