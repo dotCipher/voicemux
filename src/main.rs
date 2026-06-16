@@ -1,4 +1,5 @@
 mod config;
+mod providers;
 mod routing;
 
 use std::net::SocketAddr;
@@ -15,6 +16,7 @@ use tokio::net::TcpListener;
 use tracing::info;
 
 use crate::config::VoicemuxConfig;
+use crate::providers::provider_descriptors;
 use crate::routing::{plan_route, RouteRequest};
 
 #[derive(Debug, Parser)]
@@ -48,6 +50,7 @@ async fn main() -> anyhow::Result<()> {
 fn app(config: VoicemuxConfig) -> Router {
     Router::new()
         .route("/health", get(health))
+        .route("/v1/providers", get(list_providers))
         .route("/v1/route/dry-run", post(dry_run_route))
         .with_state(config)
 }
@@ -57,6 +60,24 @@ async fn health() -> Json<serde_json::Value> {
         "status": "ok",
         "service": "voicemux"
     }))
+}
+
+async fn list_providers(
+    State(config): State<VoicemuxConfig>,
+) -> Result<Json<serde_json::Value>, (StatusCode, Json<serde_json::Value>)> {
+    provider_descriptors(&config)
+        .map(|providers| Json(json!({ "data": providers })))
+        .map_err(|error| {
+            (
+                StatusCode::INTERNAL_SERVER_ERROR,
+                Json(json!({
+                    "error": {
+                        "type": "provider_configuration_error",
+                        "message": error.to_string()
+                    }
+                })),
+            )
+        })
 }
 
 async fn dry_run_route(
