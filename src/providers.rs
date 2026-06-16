@@ -278,10 +278,15 @@ pub fn build_provider_adapters(
 pub fn provider_descriptors(
     config: &VoicemuxConfig,
 ) -> Result<Vec<ProviderDescriptor>, ProviderError> {
-    Ok(build_provider_adapters(config)?
-        .into_values()
-        .map(|adapter| adapter.descriptor())
-        .collect())
+    Ok(provider_descriptors_from_adapters(
+        &build_provider_adapters(config)?,
+    ))
+}
+
+pub fn provider_descriptors_from_adapters(
+    adapters: &BTreeMap<String, ProviderAdapter>,
+) -> Vec<ProviderDescriptor> {
+    adapters.values().map(ProviderAdapter::descriptor).collect()
 }
 
 fn normalize_base_url(base_url: &str) -> String {

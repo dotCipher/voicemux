@@ -33,6 +33,7 @@ Avoid:
 - `ROADMAP.md`: implementation phases and priorities.
 - `docs/ARCHITECTURE.md`: system design and boundaries.
 - `docs/PROVIDERS.md`: provider strategy and adapter tiers.
+- `docs/RUNNING.md`: local operation and testing checklist.
 - `docs/STACK.md`: Rust stack and performance choices.
 - `docs/VOICEMODE.md`: VoiceMode setup and profile/voice mapping guidance.
 - `examples/voicemux.yaml`: canonical example config used by tests.

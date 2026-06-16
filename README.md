@@ -228,6 +228,7 @@ Current docs:
 - [`ROADMAP.md`](ROADMAP.md)
 - [`docs/ARCHITECTURE.md`](docs/ARCHITECTURE.md)
 - [`docs/PROVIDERS.md`](docs/PROVIDERS.md)
+- [`docs/RUNNING.md`](docs/RUNNING.md)
 - [`docs/STACK.md`](docs/STACK.md)
 - [`docs/VOICEMODE.md`](docs/VOICEMODE.md)
 - [`examples/voicemux.yaml`](examples/voicemux.yaml)

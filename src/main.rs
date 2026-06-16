@@ -6,22 +6,24 @@ mod state;
 
 use std::net::SocketAddr;
 use std::path::PathBuf;
+use std::time::Duration;
 
 use anyhow::Context;
-use axum::extract::{Multipart, State};
+use axum::extract::{DefaultBodyLimit, Multipart, State};
 use axum::http::StatusCode;
 use axum::routing::{get, post};
 use axum::{Json, Router};
 use clap::Parser;
 use serde_json::json;
 use tokio::net::TcpListener;
+use tower_http::timeout::TimeoutLayer;
 use tracing::info;
 
 use crate::config::VoicemuxConfig;
 use crate::openai::{
     error_response, proxy_speech, proxy_transcription, SpeechRequest, TranscriptionRequest,
 };
-use crate::providers::provider_descriptors;
+use crate::providers::provider_descriptors_from_adapters;
 use crate::routing::{plan_route, RouteRequest};
 use crate::state::AppState;
 
@@ -54,12 +56,20 @@ async fn main() -> anyhow::Result<()> {
 }
 
 fn app(state: AppState) -> Router {
+    let max_body_bytes = state.config.server.max_body_bytes;
+    let request_timeout = Duration::from_secs(state.config.server.request_timeout_seconds);
+
     Router::new()
         .route("/health", get(health))
         .route("/v1/audio/transcriptions", post(transcription))
         .route("/v1/audio/speech", post(speech))
         .route("/v1/providers", get(list_providers))
         .route("/v1/route/dry-run", post(dry_run_route))
+        .layer(TimeoutLayer::with_status_code(
+            StatusCode::REQUEST_TIMEOUT,
+            request_timeout,
+        ))
+        .layer(DefaultBodyLimit::max(max_body_bytes))
         .with_state(state)
 }
 
@@ -73,19 +83,9 @@ async fn health() -> Json<serde_json::Value> {
 async fn list_providers(
     State(state): State<AppState>,
 ) -> Result<Json<serde_json::Value>, (StatusCode, Json<serde_json::Value>)> {
-    provider_descriptors(&state.config)
-        .map(|providers| Json(json!({ "data": providers })))
-        .map_err(|error| {
-            (
-                StatusCode::INTERNAL_SERVER_ERROR,
-                Json(json!({
-                    "error": {
-                        "type": "provider_configuration_error",
-                        "message": error.to_string()
-                    }
-                })),
-            )
-        })
+    let providers = provider_descriptors_from_adapters(&state.providers);
+
+    Ok(Json(json!({ "data": providers })))
 }
 
 async fn speech(

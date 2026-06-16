@@ -148,19 +148,7 @@ async fn response_from_upstream(
         .cloned();
     let body = upstream_response.bytes().await?;
 
-    let mut headers = HeaderMap::new();
-    if let Some(content_type) = content_type {
-        headers.insert(
-            header::CONTENT_TYPE,
-            HeaderValue::from_bytes(content_type.as_bytes())
-                .unwrap_or_else(|_| HeaderValue::from_static(fallback_content_type)),
-        );
-    } else {
-        headers.insert(
-            header::CONTENT_TYPE,
-            HeaderValue::from_static(fallback_content_type),
-        );
-    }
+    let mut headers = upstream_headers(content_type, fallback_content_type);
     insert_route_headers(&mut headers, plan);
 
     Ok((
@@ -359,19 +347,7 @@ async fn proxy_deepgram_transcription(
     let body = upstream_response.bytes().await?;
 
     if !status.is_success() {
-        let mut headers = HeaderMap::new();
-        if let Some(content_type) = content_type {
-            headers.insert(
-                header::CONTENT_TYPE,
-                HeaderValue::from_bytes(content_type.as_bytes())
-                    .unwrap_or_else(|_| HeaderValue::from_static("application/json")),
-            );
-        } else {
-            headers.insert(
-                header::CONTENT_TYPE,
-                HeaderValue::from_static("application/json"),
-            );
-        }
+        let mut headers = upstream_headers(content_type, "application/json");
         insert_route_headers(&mut headers, plan);
 
         return Ok((
@@ -403,6 +379,27 @@ async fn proxy_deepgram_transcription(
         serde_json::json!({ "text": transcript }).to_string(),
     )
         .into_response())
+}
+
+fn upstream_headers(
+    content_type: Option<HeaderValue>,
+    fallback_content_type: &'static str,
+) -> HeaderMap {
+    let mut headers = HeaderMap::new();
+    if let Some(content_type) = content_type {
+        headers.insert(
+            header::CONTENT_TYPE,
+            HeaderValue::from_bytes(content_type.as_bytes())
+                .unwrap_or_else(|_| HeaderValue::from_static(fallback_content_type)),
+        );
+    } else {
+        headers.insert(
+            header::CONTENT_TYPE,
+            HeaderValue::from_static(fallback_content_type),
+        );
+    }
+
+    headers
 }
 
 fn deepgram_listen_url(params: &[(&str, String)]) -> String {
