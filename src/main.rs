@@ -1,10 +1,13 @@
 mod config;
+mod routing;
 
 use std::net::SocketAddr;
 use std::path::PathBuf;
 
 use anyhow::Context;
-use axum::routing::get;
+use axum::extract::State;
+use axum::http::StatusCode;
+use axum::routing::{get, post};
 use axum::{Json, Router};
 use clap::Parser;
 use serde_json::json;
@@ -12,6 +15,7 @@ use tokio::net::TcpListener;
 use tracing::info;
 
 use crate::config::VoicemuxConfig;
+use crate::routing::{plan_route, RouteRequest};
 
 #[derive(Debug, Parser)]
 #[command(version, about)]
@@ -44,6 +48,7 @@ async fn main() -> anyhow::Result<()> {
 fn app(config: VoicemuxConfig) -> Router {
     Router::new()
         .route("/health", get(health))
+        .route("/v1/route/dry-run", post(dry_run_route))
         .with_state(config)
 }
 
@@ -52,4 +57,23 @@ async fn health() -> Json<serde_json::Value> {
         "status": "ok",
         "service": "voicemux"
     }))
+}
+
+async fn dry_run_route(
+    State(config): State<VoicemuxConfig>,
+    Json(request): Json<RouteRequest>,
+) -> Result<Json<serde_json::Value>, (StatusCode, Json<serde_json::Value>)> {
+    plan_route(&config, request)
+        .map(|plan| Json(json!(plan)))
+        .map_err(|error| {
+            (
+                StatusCode::BAD_REQUEST,
+                Json(json!({
+                    "error": {
+                        "type": "invalid_route_request",
+                        "message": error.to_string()
+                    }
+                })),
+            )
+        })
 }

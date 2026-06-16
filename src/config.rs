@@ -3,7 +3,7 @@ use std::fs;
 use std::net::IpAddr;
 use std::path::Path;
 
-use serde::Deserialize;
+use serde::{Deserialize, Serialize};
 
 #[derive(Debug, Clone, Deserialize, PartialEq, Eq)]
 pub struct VoicemuxConfig {
@@ -42,8 +42,8 @@ impl VoicemuxConfig {
         }
 
         for (profile_name, profile) in &self.profiles {
-            validate_route_chain(profile_name, "stt", &profile.stt, &self.providers)?;
-            validate_route_chain(profile_name, "tts", &profile.tts, &self.providers)?;
+            validate_route_chain(profile_name, Modality::Stt, &profile.stt, &self.providers)?;
+            validate_route_chain(profile_name, Modality::Tts, &profile.tts, &self.providers)?;
         }
 
         Ok(())
@@ -52,7 +52,7 @@ impl VoicemuxConfig {
 
 fn validate_route_chain(
     profile_name: &str,
-    modality: &'static str,
+    modality: Modality,
     chain: &[String],
     providers: &BTreeMap<String, ProviderConfig>,
 ) -> Result<(), ConfigError> {
@@ -64,15 +64,39 @@ fn validate_route_chain(
     }
 
     for provider_name in chain {
-        if !providers.contains_key(provider_name) {
+        let Some(provider) = providers.get(provider_name) else {
             return Err(ConfigError::UnknownProvider {
                 profile: profile_name.to_string(),
                 provider: provider_name.clone(),
+            });
+        };
+
+        if !provider.supports_modality(modality) {
+            return Err(ConfigError::ProviderDoesNotSupportModality {
+                profile: profile_name.to_string(),
+                provider: provider_name.clone(),
+                modality,
             });
         }
     }
 
     Ok(())
+}
+
+#[derive(Debug, Clone, Copy, Deserialize, Serialize, PartialEq, Eq)]
+#[serde(rename_all = "snake_case")]
+pub enum Modality {
+    Stt,
+    Tts,
+}
+
+impl Modality {
+    pub fn as_str(self) -> &'static str {
+        match self {
+            Self::Stt => "stt",
+            Self::Tts => "tts",
+        }
+    }
 }
 
 #[derive(Debug, Clone, Deserialize, PartialEq, Eq)]
@@ -111,7 +135,22 @@ pub struct ProviderConfig {
     pub punctuate: Option<bool>,
 }
 
-#[derive(Debug, Clone, Deserialize, PartialEq, Eq)]
+impl ProviderConfig {
+    pub fn supports_modality(&self, modality: Modality) -> bool {
+        match modality {
+            Modality::Stt => matches!(
+                self.provider_type,
+                ProviderType::OpenaiAudio | ProviderType::OpenaiStt | ProviderType::DeepgramStt
+            ),
+            Modality::Tts => matches!(
+                self.provider_type,
+                ProviderType::OpenaiAudio | ProviderType::OpenaiTts | ProviderType::ElevenlabsTts
+            ),
+        }
+    }
+}
+
+#[derive(Debug, Clone, Deserialize, Serialize, PartialEq, Eq)]
 #[serde(rename_all = "snake_case")]
 pub enum ProviderType {
     OpenaiAudio,
@@ -236,12 +275,23 @@ pub enum ConfigError {
     #[error("active profile '{0}' is not defined")]
     UnknownActiveProfile(String),
     #[error("profile '{profile}' has an empty {modality} route chain")]
-    EmptyRouteChain {
-        profile: String,
-        modality: &'static str,
-    },
+    EmptyRouteChain { profile: String, modality: Modality },
     #[error("profile '{profile}' references unknown provider '{provider}'")]
     UnknownProvider { profile: String, provider: String },
+    #[error(
+        "profile '{profile}' references provider '{provider}' for unsupported {modality} route"
+    )]
+    ProviderDoesNotSupportModality {
+        profile: String,
+        provider: String,
+        modality: Modality,
+    },
+}
+
+impl std::fmt::Display for Modality {
+    fn fmt(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        formatter.write_str(self.as_str())
+    }
 }
 
 fn default_host() -> IpAddr {
@@ -337,5 +387,29 @@ providers:
         assert!(
             matches!(error, ConfigError::UnknownProvider { profile, provider } if profile == "local" && provider == "missing")
         );
+    }
+
+    #[test]
+    fn rejects_provider_with_wrong_modality() {
+        let yaml = r#"
+active_profile: local
+profiles:
+  local:
+    stt: [local_kokoro]
+    tts: [local_kokoro]
+providers:
+  local_kokoro:
+    type: openai_tts
+"#;
+
+        let error = VoicemuxConfig::from_yaml(yaml).expect_err("config should be invalid");
+        assert!(matches!(
+            error,
+            ConfigError::ProviderDoesNotSupportModality {
+                profile,
+                provider,
+                modality: Modality::Stt,
+            } if profile == "local" && provider == "local_kokoro"
+        ));
     }
 }
