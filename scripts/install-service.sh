@@ -141,6 +141,10 @@ install_macos() {
   <key>Label</key><string>$LABEL</string>
   <key>ProgramArguments</key>
   <array>
+    <string>/usr/bin/env</string>
+    <string>-i</string>
+    <string>HOME=$HOME</string>
+    <string>PATH=/usr/bin:/bin:/usr/sbin:/sbin</string>
     <string>/bin/sh</string>
     <string>$RUNNER</string>
   </array>
@@ -209,7 +213,14 @@ case "$ACTION" in
     ;;
   status)
     case "$(uname -s)" in
-      Darwin) launchctl print "gui/$(id -u)/$LABEL" ;;
+      Darwin)
+        if launchctl print "gui/$(id -u)/$LABEL" >/dev/null 2>&1; then
+          printf 'voicemux service loaded: %s\n' "$LABEL"
+        else
+          printf 'voicemux service is not loaded: %s\n' "$LABEL"
+          exit 1
+        fi
+        ;;
       Linux) systemctl --user status voicemux.service ;;
     esac
     ;;
