@@ -219,6 +219,7 @@ Currently implemented:
 - `POST /v1/route/dry-run`.
 - Generic OpenAI-compatible `/v1/audio/speech` passthrough.
 - Generic OpenAI-compatible `/v1/audio/transcriptions` passthrough.
+- `X-Voicemux-*` response headers for selected profile/provider/route metadata.
 
 Native Deepgram and ElevenLabs adapters are planned but not implemented yet.
 

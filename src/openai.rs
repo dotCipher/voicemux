@@ -8,7 +8,7 @@ use serde_json::Value;
 
 use crate::config::{Modality, VoicemuxConfig};
 use crate::providers::{build_provider_adapters, ProviderError};
-use crate::routing::{plan_route, RouteError, RouteRequest};
+use crate::routing::{plan_route, RouteError, RoutePlan, RouteRequest};
 
 #[derive(Debug, Clone, Deserialize, Serialize, PartialEq)]
 pub struct SpeechRequest {
@@ -48,9 +48,9 @@ pub async fn proxy_speech(
 
     let upstream_request = SpeechRequest {
         input: request.input,
-        model: plan.resolved_model,
-        voice: plan.resolved_voice,
-        response_format: plan.response_format,
+        model: plan.resolved_model.clone(),
+        voice: plan.resolved_voice.clone(),
+        response_format: plan.response_format.clone(),
         speed: request.speed,
         profile: None,
     };
@@ -78,6 +78,7 @@ pub async fn proxy_speech(
                 .unwrap_or_else(|_| HeaderValue::from_static("application/octet-stream")),
         );
     }
+    insert_route_headers(&mut headers, &plan);
 
     Ok((
         StatusCode::from_u16(status.as_u16()).unwrap_or(StatusCode::BAD_GATEWAY),
@@ -180,7 +181,7 @@ pub async fn proxy_transcription(
         .get(&plan.selected_provider)
         .ok_or_else(|| RouteError::UnknownProvider(plan.selected_provider.clone()))?;
     let endpoint = adapter.openai_audio_transcriptions_endpoint()?;
-    let form = request.into_form(plan.resolved_model)?;
+    let form = request.into_form(plan.resolved_model.clone())?;
 
     let client = Client::new();
     let mut builder = client.post(endpoint.url).multipart(form);
@@ -205,6 +206,7 @@ pub async fn proxy_transcription(
                 .unwrap_or_else(|_| HeaderValue::from_static("application/json")),
         );
     }
+    insert_route_headers(&mut headers, &plan);
 
     Ok((
         StatusCode::from_u16(status.as_u16()).unwrap_or(StatusCode::BAD_GATEWAY),
@@ -212,6 +214,26 @@ pub async fn proxy_transcription(
         body,
     )
         .into_response())
+}
+
+fn insert_route_headers(headers: &mut HeaderMap, plan: &RoutePlan) {
+    insert_header(headers, "x-voicemux-profile", &plan.profile);
+    insert_header(headers, "x-voicemux-provider", &plan.selected_provider);
+    insert_header(headers, "x-voicemux-route", &plan.route.join(","));
+
+    if let Some(model) = &plan.resolved_model {
+        insert_header(headers, "x-voicemux-model", model);
+    }
+
+    if let Some(voice) = &plan.resolved_voice {
+        insert_header(headers, "x-voicemux-voice", voice);
+    }
+}
+
+fn insert_header(headers: &mut HeaderMap, name: &'static str, value: &str) {
+    if let Ok(value) = HeaderValue::from_str(value) {
+        headers.insert(name, value);
+    }
 }
 
 fn multipart_part(field: TranscriptionField) -> Result<Part, OpenAiProxyError> {
@@ -332,5 +354,27 @@ mod tests {
 
         assert_eq!(request.text_field("model").as_deref(), Some("whisper-1"));
         assert_eq!(request.text_field("profile").as_deref(), Some("local"));
+    }
+
+    #[test]
+    fn inserts_route_headers() {
+        let plan = RoutePlan {
+            profile: "local".to_string(),
+            modality: Modality::Tts,
+            route: vec!["local_kokoro".to_string()],
+            selected_provider: "local_kokoro".to_string(),
+            resolved_model: Some("tts-1".to_string()),
+            resolved_voice: Some("af_sky".to_string()),
+            response_format: Some("mp3".to_string()),
+        };
+        let mut headers = HeaderMap::new();
+
+        insert_route_headers(&mut headers, &plan);
+
+        assert_eq!(headers["x-voicemux-profile"], "local");
+        assert_eq!(headers["x-voicemux-provider"], "local_kokoro");
+        assert_eq!(headers["x-voicemux-route"], "local_kokoro");
+        assert_eq!(headers["x-voicemux-model"], "tts-1");
+        assert_eq!(headers["x-voicemux-voice"], "af_sky");
     }
 }
