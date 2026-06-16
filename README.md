@@ -194,6 +194,17 @@ Important compatible backends:
 - Keep the core dependency footprint small.
 - Avoid provider-specific behavior leaking into clients.
 
+## AI Coding Agents
+
+This repository is intentionally easy for AI coding agents to inspect and extend.
+
+- [`AGENTS.md`](AGENTS.md) is the canonical agent guide.
+- [`.github/copilot-instructions.md`](.github/copilot-instructions.md) mirrors the core constraints for GitHub Copilot-style tools.
+- Public docs in `docs/` describe architecture, provider strategy, and stack decisions.
+- `examples/voicemux.yaml` is the canonical config shape and is covered by tests.
+
+Agents should run `cargo fmt` and `cargo test` before considering implementation work complete.
+
 ## Project Status
 
 Planning and prototyping.

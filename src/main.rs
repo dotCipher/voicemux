@@ -1,4 +1,5 @@
 mod config;
+mod openai;
 mod providers;
 mod routing;
 
@@ -16,6 +17,7 @@ use tokio::net::TcpListener;
 use tracing::info;
 
 use crate::config::VoicemuxConfig;
+use crate::openai::{error_response, proxy_speech, SpeechRequest};
 use crate::providers::provider_descriptors;
 use crate::routing::{plan_route, RouteRequest};
 
@@ -50,6 +52,7 @@ async fn main() -> anyhow::Result<()> {
 fn app(config: VoicemuxConfig) -> Router {
     Router::new()
         .route("/health", get(health))
+        .route("/v1/audio/speech", post(speech))
         .route("/v1/providers", get(list_providers))
         .route("/v1/route/dry-run", post(dry_run_route))
         .with_state(config)
@@ -78,6 +81,13 @@ async fn list_providers(
                 })),
             )
         })
+}
+
+async fn speech(
+    State(config): State<VoicemuxConfig>,
+    Json(request): Json<SpeechRequest>,
+) -> Result<axum::response::Response, (StatusCode, Json<serde_json::Value>)> {
+    proxy_speech(&config, request).await.map_err(error_response)
 }
 
 async fn dry_run_route(
