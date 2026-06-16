@@ -1,0 +1,11 @@
+# Local planning/research notes
+PLAN.md
+RESEARCH.md
+COMPARISON.md
+
+# OS/editor noise
+.DS_Store
+*.swp
+
+# Rust build output
+/target/
