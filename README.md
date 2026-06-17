@@ -221,6 +221,7 @@ Currently implemented:
 - Generic OpenAI-compatible `/v1/audio/transcriptions` passthrough.
 - Native Deepgram STT translation.
 - Native ElevenLabs TTS translation.
+- Bounded route-chain fallback across providers.
 - `X-Voicemux-*` response headers for selected profile/provider/route metadata.
 
 Current docs:

@@ -31,7 +31,7 @@ profiles:
     tts: [local_kokoro]
 ```
 
-With this setup, VoiceMode does not need to know about Deepgram, ElevenLabs, Kokoro, or Whisper directly.
+With this setup, VoiceMode does not need to know about Deepgram, ElevenLabs, Kokoro, or Whisper directly. The `hybrid` profile is cloud-first with local fallback: Deepgram falls back to local Whisper for STT, and ElevenLabs falls back to local Kokoro for TTS.
 
 ## Voice Mapping
 
@@ -46,6 +46,8 @@ aliases:
 ```
 
 Set `VOICEMODE_VOICES=assistant`, then switch `active_profile` between `hybrid`, `cloud`, and `local` without changing VoiceMode.
+
+Deepgram is currently STT-only in `voicemux`, so voice aliases apply to TTS providers such as ElevenLabs, Kokoro, Speaches, or Vox Box. If Deepgram TTS is added later, it can receive its own value under the same alias.
 
 ## Required Secrets
 

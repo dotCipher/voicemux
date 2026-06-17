@@ -30,6 +30,16 @@ pub struct RoutePlan {
 }
 
 pub fn plan_route(config: &VoicemuxConfig, request: RouteRequest) -> Result<RoutePlan, RouteError> {
+    plan_route_candidates(config, request)?
+        .into_iter()
+        .next()
+        .ok_or(RouteError::NoRouteCandidates)
+}
+
+pub fn plan_route_candidates(
+    config: &VoicemuxConfig,
+    request: RouteRequest,
+) -> Result<Vec<RoutePlan>, RouteError> {
     let profile_name = request
         .profile
         .clone()
@@ -44,48 +54,52 @@ pub fn plan_route(config: &VoicemuxConfig, request: RouteRequest) -> Result<Rout
         Modality::Tts => &profile.tts,
     };
 
-    let selected_provider = chain
-        .first()
-        .ok_or_else(|| RouteError::EmptyRouteChain {
+    if chain.is_empty() {
+        return Err(RouteError::EmptyRouteChain {
             profile: profile_name.clone(),
-            modality: request.modality,
-        })?
-        .clone();
-
-    let provider = config
-        .providers
-        .get(&selected_provider)
-        .ok_or_else(|| RouteError::UnknownProvider(selected_provider.clone()))?;
-
-    if !provider.supports_modality(request.modality) {
-        return Err(RouteError::ProviderDoesNotSupportModality {
-            provider: selected_provider,
             modality: request.modality,
         });
     }
 
-    let resolved_model = resolve_alias(
-        request.model.as_deref(),
-        &selected_provider,
-        &config.aliases.models,
-        provider.model.as_deref(),
-    );
-    let resolved_voice = resolve_alias(
-        request.voice.as_deref(),
-        &selected_provider,
-        &config.aliases.voices,
-        default_voice(provider),
-    );
+    chain
+        .iter()
+        .map(|selected_provider| {
+            let provider = config
+                .providers
+                .get(selected_provider)
+                .ok_or_else(|| RouteError::UnknownProvider(selected_provider.clone()))?;
 
-    Ok(RoutePlan {
-        profile: profile_name,
-        modality: request.modality,
-        route: chain.clone(),
-        selected_provider,
-        resolved_model,
-        resolved_voice,
-        response_format: request.response_format,
-    })
+            if !provider.supports_modality(request.modality) {
+                return Err(RouteError::ProviderDoesNotSupportModality {
+                    provider: selected_provider.clone(),
+                    modality: request.modality,
+                });
+            }
+
+            let resolved_model = resolve_alias(
+                request.model.as_deref(),
+                selected_provider,
+                &config.aliases.models,
+                provider.model.as_deref(),
+            );
+            let resolved_voice = resolve_alias(
+                request.voice.as_deref(),
+                selected_provider,
+                &config.aliases.voices,
+                default_voice(provider),
+            );
+
+            Ok(RoutePlan {
+                profile: profile_name.clone(),
+                modality: request.modality,
+                route: chain.clone(),
+                selected_provider: selected_provider.clone(),
+                resolved_model,
+                resolved_voice,
+                response_format: request.response_format.clone(),
+            })
+        })
+        .collect()
 }
 
 fn resolve_alias(
@@ -122,6 +136,8 @@ pub enum RouteError {
         provider: String,
         modality: Modality,
     },
+    #[error("route produced no provider candidates")]
+    NoRouteCandidates,
 }
 
 #[cfg(test)]
@@ -201,6 +217,35 @@ mod tests {
         assert_eq!(plan.selected_provider, "local_kokoro");
         assert_eq!(plan.resolved_model.as_deref(), Some("tts-1"));
         assert_eq!(plan.resolved_voice.as_deref(), Some("af_sky"));
+    }
+
+    #[test]
+    fn plans_all_hybrid_tts_candidates() {
+        let config = example_config();
+        let plans = plan_route_candidates(
+            &config,
+            RouteRequest {
+                modality: Modality::Tts,
+                profile: Some("hybrid".to_string()),
+                model: Some("tts-1".to_string()),
+                voice: Some("assistant".to_string()),
+                response_format: None,
+            },
+        )
+        .expect("route candidates should plan");
+
+        assert_eq!(plans.len(), 2);
+        assert_eq!(plans[0].selected_provider, "elevenlabs");
+        assert_eq!(
+            plans[0].resolved_model.as_deref(),
+            Some("eleven_turbo_v2_5")
+        );
+        assert_eq!(plans[1].selected_provider, "speaches");
+        assert_eq!(
+            plans[1].resolved_model.as_deref(),
+            Some("speaches-ai/Kokoro-82M-v1.0-ONNX")
+        );
+        assert_eq!(plans[1].resolved_voice.as_deref(), Some("af_heart"));
     }
 
     #[test]

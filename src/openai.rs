@@ -8,7 +8,7 @@ use serde_json::Value;
 
 use crate::config::Modality;
 use crate::providers::{NativeAdapter, ProviderAdapter, ProviderError};
-use crate::routing::{plan_route, RouteError, RoutePlan, RouteRequest};
+use crate::routing::{plan_route_candidates, RouteError, RoutePlan, RouteRequest};
 use crate::state::AppState;
 
 #[derive(Debug, Clone, Deserialize, Serialize, PartialEq)]
@@ -30,7 +30,7 @@ pub async fn proxy_speech(
     state: &AppState,
     request: SpeechRequest,
 ) -> Result<Response, OpenAiProxyError> {
-    let plan = plan_route(
+    let plans = plan_route_candidates(
         &state.config,
         RouteRequest {
             modality: Modality::Tts,
@@ -41,14 +41,46 @@ pub async fn proxy_speech(
         },
     )?;
 
+    let max_attempts = state.config.fallback.max_attempts_per_request.max(1);
+    let mut last_error = None;
+
+    for (index, plan) in plans.into_iter().take(max_attempts).enumerate() {
+        let is_last_attempt = index + 1 == max_attempts || index + 1 == plan.route.len();
+        match proxy_speech_attempt(state, request.clone(), &plan).await {
+            Ok(response) => {
+                if !is_last_attempt && should_fallback_status(state, response.status()) {
+                    continue;
+                }
+
+                return Ok(response);
+            }
+            Err(error) => {
+                if !is_last_attempt && should_fallback_error(state, &error) {
+                    last_error = Some(error);
+                    continue;
+                }
+
+                return Err(error);
+            }
+        }
+    }
+
+    Err(last_error.unwrap_or(OpenAiProxyError::Route(RouteError::NoRouteCandidates)))
+}
+
+async fn proxy_speech_attempt(
+    state: &AppState,
+    request: SpeechRequest,
+    plan: &RoutePlan,
+) -> Result<Response, OpenAiProxyError> {
     let adapter = state
         .providers
         .get(&plan.selected_provider)
         .ok_or_else(|| RouteError::UnknownProvider(plan.selected_provider.clone()))?;
     match adapter {
-        ProviderAdapter::OpenAi(_) => proxy_openai_speech(state, adapter, &plan, request).await,
+        ProviderAdapter::OpenAi(_) => proxy_openai_speech(state, adapter, plan, request).await,
         ProviderAdapter::ElevenlabsTts(adapter) => {
-            proxy_elevenlabs_speech(state, adapter, &plan, request).await
+            proxy_elevenlabs_speech(state, adapter, plan, request).await
         }
         ProviderAdapter::DeepgramStt(adapter) => Err(ProviderError::UnsupportedPassthrough {
             provider: adapter.name().to_string(),
@@ -251,24 +283,80 @@ pub async fn proxy_transcription(
         voice: None,
         response_format: request.text_field("response_format"),
     };
-    let plan = plan_route(&state.config, route_request)?;
+    let plans = plan_route_candidates(&state.config, route_request)?;
 
+    let max_attempts = state.config.fallback.max_attempts_per_request.max(1);
+    let mut last_error = None;
+
+    for (index, plan) in plans.into_iter().take(max_attempts).enumerate() {
+        let is_last_attempt = index + 1 == max_attempts || index + 1 == plan.route.len();
+        match proxy_transcription_attempt(state, request.clone(), &plan).await {
+            Ok(response) => {
+                if !is_last_attempt && should_fallback_status(state, response.status()) {
+                    continue;
+                }
+
+                return Ok(response);
+            }
+            Err(error) => {
+                if !is_last_attempt && should_fallback_error(state, &error) {
+                    last_error = Some(error);
+                    continue;
+                }
+
+                return Err(error);
+            }
+        }
+    }
+
+    Err(last_error.unwrap_or(OpenAiProxyError::Route(RouteError::NoRouteCandidates)))
+}
+
+async fn proxy_transcription_attempt(
+    state: &AppState,
+    request: TranscriptionRequest,
+    plan: &RoutePlan,
+) -> Result<Response, OpenAiProxyError> {
     let adapter = state
         .providers
         .get(&plan.selected_provider)
         .ok_or_else(|| RouteError::UnknownProvider(plan.selected_provider.clone()))?;
     match adapter {
         ProviderAdapter::OpenAi(_) => {
-            proxy_openai_transcription(state, adapter, &plan, request).await
+            proxy_openai_transcription(state, adapter, plan, request).await
         }
         ProviderAdapter::DeepgramStt(adapter) => {
-            proxy_deepgram_transcription(state, adapter, &plan, request).await
+            proxy_deepgram_transcription(state, adapter, plan, request).await
         }
         ProviderAdapter::ElevenlabsTts(adapter) => Err(ProviderError::UnsupportedPassthrough {
             provider: adapter.name().to_string(),
             endpoint: "/v1/audio/transcriptions",
         }
         .into()),
+    }
+}
+
+fn should_fallback_status(state: &AppState, status: StatusCode) -> bool {
+    state
+        .config
+        .fallback
+        .fallback_on_statuses
+        .contains(&status.as_u16())
+}
+
+fn should_fallback_error(state: &AppState, error: &OpenAiProxyError) -> bool {
+    match error {
+        OpenAiProxyError::Provider(_) | OpenAiProxyError::UpstreamJson(_) => true,
+        OpenAiProxyError::Upstream(error) => {
+            !error.is_timeout() || state.config.fallback.retry_timeouts
+        }
+        OpenAiProxyError::Route(_)
+        | OpenAiProxyError::Multipart(_)
+        | OpenAiProxyError::MissingMultipartFieldName
+        | OpenAiProxyError::MultipartContentType(_)
+        | OpenAiProxyError::InvalidSpeechInput
+        | OpenAiProxyError::MissingVoice(_)
+        | OpenAiProxyError::MissingTranscriptionFile => false,
     }
 }
 
@@ -527,6 +615,15 @@ pub fn error_response(error: OpenAiProxyError) -> (StatusCode, axum::Json<serde_
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::config::VoicemuxConfig;
+
+    fn app_state() -> AppState {
+        AppState::new(
+            VoicemuxConfig::from_yaml(include_str!("../examples/voicemux.yaml"))
+                .expect("example config should parse"),
+        )
+        .expect("app state should build")
+    }
 
     #[test]
     fn serializes_speech_request_without_profile() {
@@ -632,5 +729,25 @@ mod tests {
             url,
             "https://api.deepgram.com/v1/listen?model=nova+3&language=en-US"
         );
+    }
+
+    #[test]
+    fn falls_back_on_configured_statuses() {
+        let state = app_state();
+
+        assert!(should_fallback_status(
+            &state,
+            StatusCode::TOO_MANY_REQUESTS
+        ));
+        assert!(should_fallback_status(&state, StatusCode::BAD_GATEWAY));
+        assert!(!should_fallback_status(&state, StatusCode::BAD_REQUEST));
+    }
+
+    #[test]
+    fn falls_back_on_provider_configuration_errors() {
+        let state = app_state();
+        let error = OpenAiProxyError::Provider(ProviderError::MissingApiKey("elevenlabs".into()));
+
+        assert!(should_fallback_error(&state, &error));
     }
 }

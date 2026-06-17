@@ -151,16 +151,16 @@ Initial candidate:
 
 ## Fallback Semantics
 
-Fallback should happen only when it is safe and useful.
+Fallback happens only when it is safe and useful. Each request walks the configured route chain up to `fallback.max_attempts_per_request`.
 
-Fallback candidates:
+Current fallback candidates:
 
-- Provider unavailable.
-- Provider timeout.
-- Provider quota/rate-limit error, if configured as fallback-safe.
-- Provider reports unsupported model/voice and an alias exists for another provider.
+- Provider configuration errors, such as a missing cloud API key.
+- Upstream request errors, except timeouts unless `retry_timeouts` is enabled.
+- Upstream JSON parse errors.
+- Upstream HTTP statuses listed in `fallback.fallback_on_statuses`.
 
-Fallback should not silently hide invalid client requests when all providers would fail.
+Fallback does not silently hide invalid client requests when all providers would fail.
 
 ## Observability
 
