@@ -133,7 +133,14 @@ async fn proxy_elevenlabs_speech(
         .as_deref()
         .or_else(|| adapter.model())
         .unwrap_or("eleven_turbo_v2_5");
-    let output_format = adapter.output_format().unwrap_or("mp3_44100_128");
+    // Priority: request.response_format > adapter config > hardcoded default.
+    // Map OpenAI format names (e.g. "pcm") to ElevenLabs native strings (e.g. "pcm_24000").
+    let config_default = adapter.output_format().unwrap_or("mp3_44100_128");
+    let output_format = match request.response_format.as_deref() {
+        Some(fmt) => elevenlabs_output_format(fmt),
+        None => config_default,
+    };
+    let content_type = elevenlabs_content_type(output_format);
     let url = elevenlabs_speech_url(voice, output_format);
 
     let upstream_response = state
@@ -147,7 +154,46 @@ async fn proxy_elevenlabs_speech(
         .send()
         .await?;
 
-    response_from_upstream(upstream_response, "audio/mpeg", plan).await
+    response_from_upstream(upstream_response, content_type, plan).await
+}
+
+/// Maps an OpenAI `response_format` value (e.g. "pcm", "mp3", "opus", "wav")
+/// to an ElevenLabs `output_format` query parameter.
+///
+/// If the value is already an ElevenLabs-native format string (contains `_`),
+/// it is passed through unchanged.
+fn elevenlabs_output_format(openai_format: &str) -> &str {
+    // Pass through ElevenLabs-native format strings like "pcm_44100", "mp3_22050_32"
+    if openai_format.contains('_') {
+        return openai_format;
+    }
+    match openai_format {
+        "pcm" => "pcm_24000",
+        "mp3" => "mp3_44100_128",
+        "opus" => "opus_48000_128",
+        "wav" => "wav_44100",
+        // aac, flac have no ElevenLabs equivalent — fall back to mp3
+        "aac" | "flac" => "mp3_44100_128",
+        _ => openai_format,
+    }
+}
+
+/// Returns the appropriate `Content-Type` header value for a given
+/// ElevenLabs `output_format` string.
+fn elevenlabs_content_type(output_format: &str) -> &'static str {
+    if output_format.starts_with("pcm_") {
+        "audio/pcm"
+    } else if output_format.starts_with("mp3_") {
+        "audio/mpeg"
+    } else if output_format.starts_with("opus_") {
+        "audio/opus"
+    } else if output_format.starts_with("wav_") {
+        "audio/wav"
+    } else if output_format.starts_with("alaw_") || output_format.starts_with("ulaw_") {
+        "audio/basic"
+    } else {
+        "application/octet-stream"
+    }
 }
 
 fn elevenlabs_speech_url(voice: &str, output_format: &str) -> String {
@@ -749,5 +795,36 @@ mod tests {
         let error = OpenAiProxyError::Provider(ProviderError::MissingApiKey("elevenlabs".into()));
 
         assert!(should_fallback_error(&state, &error));
+    }
+
+    #[test]
+    fn maps_openai_formats_to_elevenlabs() {
+        assert_eq!(elevenlabs_output_format("pcm"), "pcm_24000");
+        assert_eq!(elevenlabs_output_format("mp3"), "mp3_44100_128");
+        assert_eq!(elevenlabs_output_format("opus"), "opus_48000_128");
+        assert_eq!(elevenlabs_output_format("wav"), "wav_44100");
+        assert_eq!(elevenlabs_output_format("aac"), "mp3_44100_128");
+        assert_eq!(elevenlabs_output_format("flac"), "mp3_44100_128");
+    }
+
+    #[test]
+    fn passes_through_elevenlabs_native_formats() {
+        assert_eq!(elevenlabs_output_format("pcm_44100"), "pcm_44100");
+        assert_eq!(elevenlabs_output_format("mp3_22050_32"), "mp3_22050_32");
+        assert_eq!(elevenlabs_output_format("ulaw_8000"), "ulaw_8000");
+    }
+
+    #[test]
+    fn maps_elevenlabs_formats_to_content_types() {
+        assert_eq!(elevenlabs_content_type("pcm_24000"), "audio/pcm");
+        assert_eq!(elevenlabs_content_type("pcm_44100"), "audio/pcm");
+        assert_eq!(elevenlabs_content_type("mp3_44100_128"), "audio/mpeg");
+        assert_eq!(elevenlabs_content_type("opus_48000_128"), "audio/opus");
+        assert_eq!(elevenlabs_content_type("wav_44100"), "audio/wav");
+        assert_eq!(elevenlabs_content_type("ulaw_8000"), "audio/basic");
+        assert_eq!(
+            elevenlabs_content_type("unknown"),
+            "application/octet-stream"
+        );
     }
 }
