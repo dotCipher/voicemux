@@ -245,4 +245,4 @@ Docs:
 
 ## License
 
-See [`LICENSE`](LICENSE) if present; otherwise licensing is to be determined.
+Licensed under the [MIT License](LICENSE).
