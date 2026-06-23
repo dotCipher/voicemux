@@ -5,6 +5,10 @@ edition = "2021"
 description = "OpenAI-compatible STT/TTS router for local and cloud speech providers."
 license = "MIT"
 repository = "https://github.com/dotCipher/voicemux"
+homepage = "https://github.com/dotCipher/voicemux"
+readme = "README.md"
+keywords = ["stt", "tts", "openai", "speech", "proxy"]
+categories = ["multimedia::audio", "web-programming::http-server", "command-line-utilities"]
 
 [dependencies]
 anyhow = "1"
