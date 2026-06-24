@@ -33,6 +33,8 @@ profiles:
 
 With this setup, VoiceMode does not need to know about Deepgram, ElevenLabs, Kokoro, or Whisper directly. The `hybrid` profile is cloud-first with local fallback: Deepgram falls back to local Whisper for STT, and ElevenLabs falls back to local Kokoro for TTS.
 
+This is the recommended VoiceMode profile for interactive use: Deepgram provides fast, accurate STT, ElevenLabs provides natural TTS, and local services keep VoiceMode usable when cloud providers are unavailable.
+
 ## Voice Mapping
 
 VoiceMode sends one voice name. `voicemux` maps that name per provider:
@@ -48,6 +50,50 @@ aliases:
 Set `VOICEMODE_VOICES=assistant`, then switch `active_profile` between `hybrid`, `cloud`, and `local` without changing VoiceMode.
 
 Deepgram is currently STT-only in `voicemux`, so voice aliases apply to TTS providers such as ElevenLabs, Kokoro, Speaches, or Vox Box. If Deepgram TTS is added later, it can receive its own value under the same alias.
+
+To use a specific ElevenLabs voice, set the `elevenlabs` value to that voice's ElevenLabs voice ID. VoiceMode continues to send the stable alias (`assistant`), while `voicemux` resolves the provider-specific voice ID.
+
+## Verification
+
+Confirm TTS is using ElevenLabs:
+
+```bash
+curl -4 -s -D - -o /tmp/voicemux-tts.raw \
+  http://127.0.0.1:8787/v1/audio/speech \
+  -H 'content-type: application/json' \
+  -d '{"input":"Testing voicemux","model":"tts-1","voice":"assistant","response_format":"pcm"}' \
+  | grep -i '^x-voicemux\|^content-type\|^HTTP'
+```
+
+Expected headers include:
+
+```http
+x-voicemux-profile: hybrid
+x-voicemux-provider: elevenlabs
+x-voicemux-route: elevenlabs,local_kokoro
+x-voicemux-voice: ELEVENLABS_VOICE_ID_HERE
+```
+
+Confirm STT is using Deepgram:
+
+```bash
+curl -4 -s -D - -o /tmp/voicemux-stt.json \
+  http://127.0.0.1:8787/v1/audio/transcriptions \
+  -F file=@sample.wav \
+  -F model=whisper-1 \
+  | grep -i '^x-voicemux\|^content-type\|^HTTP'
+```
+
+Expected headers include:
+
+```http
+x-voicemux-profile: hybrid
+x-voicemux-provider: deepgram
+x-voicemux-route: deepgram,local_whisper
+x-voicemux-model: nova-3
+```
+
+VoiceMode may display `STT: local` for this setup because it only sees the local `127.0.0.1:8787` endpoint. Use the `x-voicemux-provider` response header to confirm whether `voicemux` routed the request to Deepgram or a local fallback.
 
 ## Required Secrets
 

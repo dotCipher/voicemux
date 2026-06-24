@@ -15,8 +15,8 @@ profiles:
     tts: [speaches, local_kokoro]
 
   hybrid:
-    stt: [deepgram, speaches]
-    tts: [elevenlabs, speaches]
+    stt: [deepgram, local_whisper]
+    tts: [elevenlabs, local_kokoro]
 
   cloud:
     stt: [deepgram]

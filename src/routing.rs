@@ -166,7 +166,7 @@ mod tests {
         .expect("route should plan");
 
         assert_eq!(plan.profile, "hybrid");
-        assert_eq!(plan.route, vec!["deepgram", "speaches"]);
+        assert_eq!(plan.route, vec!["deepgram", "local_whisper"]);
         assert_eq!(plan.selected_provider, "deepgram");
         assert_eq!(plan.resolved_model.as_deref(), Some("nova-3"));
         assert_eq!(plan.resolved_voice, None);
@@ -188,7 +188,7 @@ mod tests {
         .expect("route should plan");
 
         assert_eq!(plan.profile, "hybrid");
-        assert_eq!(plan.route, vec!["elevenlabs", "speaches"]);
+        assert_eq!(plan.route, vec!["elevenlabs", "local_kokoro"]);
         assert_eq!(plan.selected_provider, "elevenlabs");
         assert_eq!(plan.resolved_model.as_deref(), Some("eleven_turbo_v2_5"));
         assert_eq!(
@@ -240,12 +240,9 @@ mod tests {
             plans[0].resolved_model.as_deref(),
             Some("eleven_turbo_v2_5")
         );
-        assert_eq!(plans[1].selected_provider, "speaches");
-        assert_eq!(
-            plans[1].resolved_model.as_deref(),
-            Some("speaches-ai/Kokoro-82M-v1.0-ONNX")
-        );
-        assert_eq!(plans[1].resolved_voice.as_deref(), Some("af_heart"));
+        assert_eq!(plans[1].selected_provider, "local_kokoro");
+        assert_eq!(plans[1].resolved_model.as_deref(), Some("tts-1"));
+        assert_eq!(plans[1].resolved_voice.as_deref(), Some("af_sky"));
     }
 
     #[test]

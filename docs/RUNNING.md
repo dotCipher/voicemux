@@ -10,6 +10,11 @@ DEEPGRAM_API_KEY=... ELEVENLABS_API_KEY=... cargo run -- --config examples/voice
 
 The example config listens on `127.0.0.1:8787`.
 
+If another local service also listens on port `8787`, choose a different
+`server.port` in `voicemux.yaml`. On macOS with Docker Desktop, an IPv6 wildcard
+listener can make curl hit the wrong service; use `curl -4` when testing the
+default `127.0.0.1:8787` endpoint.
+
 ## Health
 
 ```bash

@@ -345,7 +345,10 @@ mod tests {
             config.providers["local_whisper"].capabilities,
             vec![Capability::Stt]
         );
-        assert_eq!(config.profiles["hybrid"].stt, vec!["deepgram", "speaches"]);
+        assert_eq!(
+            config.profiles["hybrid"].stt,
+            vec!["deepgram", "local_whisper"]
+        );
         assert_eq!(config.aliases.voices["assistant"]["local_kokoro"], "af_sky");
     }
 
