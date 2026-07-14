@@ -1,93 +1,85 @@
 # Install And Release
 
-`voicemux` is designed to be installed as a small native binary and optionally managed as a user-level background service.
+`voicemux` is a single native binary. It can run in a terminal or as a per-user background service.
 
-## Recommended Release Strategy
+## macOS And Linux: Recommended Install
 
-Research summary:
-
-- `dist` / `cargo-dist` is the strongest Rust-native release tool when we want generated GitHub Releases, archives, installer scripts, Homebrew, npm wrappers, MSI, and eventually updater support.
-- `cargo-binstall` is useful once GitHub Releases exist because it can install Rust binaries without building from source.
-- `service-manager` is a good future in-binary service-management library for systemd, launchd, Windows service managers, OpenRC, and FreeBSD rc.d, but starting with explicit OS-native scripts keeps the binary smaller and easier to debug.
-
-Current implementation:
-
-- CI runs `cargo fmt`, `cargo clippy`, and `cargo test` on Linux, macOS, and Windows.
-- Tag pushes like `v0.1.0` build release archives for Linux, macOS, and Windows using GitHub Actions.
-- macOS/Linux service installation is managed by `scripts/install-service.sh`.
-- Windows autostart is managed by `scripts/install-service.ps1` using a Scheduled Task.
-
-## From Source
+The release installer queries the current GitHub Release, verifies its SHA-256 checksum, and installs the binary to `~/.local/bin` by default.
 
 ```bash
-cargo install --path . --locked
+git clone https://github.com/dotCipher/voicemux.git
+cd voicemux
+sh scripts/install.sh
 ```
 
-Or run directly while developing:
+Use another install prefix if needed:
 
 ```bash
-cargo run -- --config examples/voicemux.yaml
+PREFIX=/usr/local sh scripts/install.sh
 ```
 
-## From GitHub Releases
+Install a specific release instead of the latest:
 
-After a tagged release is published, download the archive for your platform from GitHub Releases and place `voicemux` on your `PATH`.
+```bash
+VERSION=v0.1.2 sh scripts/install.sh
+```
 
-Release targets currently built:
+The installer supports these release targets:
 
 - `x86_64-unknown-linux-gnu`
 - `aarch64-unknown-linux-gnu`
 - `x86_64-apple-darwin`
 - `aarch64-apple-darwin`
-- `x86_64-pc-windows-msvc`
 
-## Service Install: macOS And Linux
+Linux binaries require a glibc-based distribution. Build from source for other libc environments.
 
-Install as a user-level background service:
+If `~/.local/bin` is not already on `PATH`, add it before invoking `voicemux`.
 
-```bash
-scripts/install-service.sh install --bin "$(command -v voicemux)"
-```
+## Configure And Run As A Service
 
-Manage it:
+Install the user-level service after the binary is available:
 
 ```bash
-scripts/install-service.sh status
-scripts/install-service.sh restart
-scripts/install-service.sh stop
-scripts/install-service.sh start
-scripts/install-service.sh uninstall
+sh scripts/install-service.sh install --bin "$HOME/.local/bin/voicemux"
 ```
 
-Files created:
+The installer creates these files without overwriting an existing config:
 
 - Config: `~/.config/voicemux/voicemux.yaml`
-- Env file: `~/.config/voicemux/voicemux.env`
-- macOS launchd plist: `~/Library/LaunchAgents/com.dotcipher.voicemux.plist`
+- Environment: `~/.config/voicemux/voicemux.env`
+- macOS launchd agent: `~/Library/LaunchAgents/com.dotcipher.voicemux.plist`
 - Linux systemd user unit: `~/.config/systemd/user/voicemux.service`
 
-Fill in secrets in `~/.config/voicemux/voicemux.env`:
-
-```env
-DEEPGRAM_API_KEY=...
-ELEVENLABS_API_KEY=...
-```
-
-Then restart:
+For the recommended cloud-first profile, add your provider keys to `~/.config/voicemux/voicemux.env`, set an ElevenLabs voice ID for the `assistant` alias in `~/.config/voicemux/voicemux.yaml`, then restart:
 
 ```bash
-scripts/install-service.sh restart
+sh scripts/install-service.sh restart
+curl http://127.0.0.1:8787/health
 ```
 
-## Service Install: Windows
+Manage the service with:
 
-Install as a user-level Scheduled Task:
+```bash
+sh scripts/install-service.sh status
+sh scripts/install-service.sh restart
+sh scripts/install-service.sh stop
+sh scripts/install-service.sh start
+sh scripts/install-service.sh uninstall
+```
+
+## Windows
+
+Download `voicemux-x86_64-pc-windows-msvc.zip` and its matching `.sha256` file from the [latest release](https://github.com/dotCipher/voicemux/releases/latest). Verify the checksum, extract `voicemux.exe`, and put it on `PATH`.
+
+Clone the repository to use the service script, then create a per-user Scheduled Task:
 
 ```powershell
 .\scripts\install-service.ps1 install -Bin "C:\path\to\voicemux.exe"
 ```
 
-Manage it:
+The script creates `%APPDATA%\voicemux\voicemux.yaml`, `%APPDATA%\voicemux\voicemux.env`, and `%APPDATA%\voicemux\Start-Voicemux.ps1`.
+
+Manage the service with:
 
 ```powershell
 .\scripts\install-service.ps1 status
@@ -97,29 +89,29 @@ Manage it:
 .\scripts\install-service.ps1 uninstall
 ```
 
-Files created under `%APPDATA%\voicemux`:
+## From Source
 
-- `voicemux.yaml`
-- `voicemux.env`
-- `Start-Voicemux.ps1`
+Install the binary from a checkout:
+
+```bash
+cargo install --path . --locked
+```
+
+Or run it during development:
+
+```bash
+cargo run -- --config examples/voicemux.yaml
+```
 
 ## Release Process
 
-1. Update `Cargo.toml` version.
-2. Commit the version/docs changes.
-3. Tag the release:
+1. Update `Cargo.toml` and `Cargo.lock` to the release version.
+2. Commit the version and release notes.
+3. Create and push an annotated matching tag:
 
 ```bash
-git tag v0.1.0
-git push origin main --tags
+git tag -a v0.1.2 -m "v0.1.2"
+git push origin main v0.1.2
 ```
 
-GitHub Actions will build archives, checksums, and attach them to the GitHub Release.
-
-## Future Improvements
-
-- Add `dist` once release needs grow beyond basic GitHub archive publishing.
-- Add Homebrew formula publishing.
-- Add `cargo-binstall` metadata after crates.io publishing.
-- Add in-binary `voicemux service install/start/stop/status` using `service-manager` if scripts become too hard to maintain.
-- Add signed artifacts and GitHub provenance attestations.
+GitHub Actions validates that the tag matches the Cargo package version, builds archives and SHA-256 checksums for every supported target, and attaches them to the GitHub Release.

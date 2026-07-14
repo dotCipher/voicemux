@@ -68,6 +68,11 @@ aliases:
       elevenlabs: ELEVENLABS_VOICE_ID_HERE
       local_kokoro: af_sky
 
+fallback:
+  retry_timeouts: false
+  fallback_on_statuses: [408, 429, 500, 502, 503, 504]
+  max_attempts_per_request: 2
+
 server:
   host: 127.0.0.1
   port: 8787

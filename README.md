@@ -31,13 +31,27 @@ Speech stacks are fragmented. One app supports OpenAI TTS, another supports Deep
 
 ## Quick Start
 
-Run from source against the example config:
+Install the latest verified release binary on macOS or Linux:
 
 ```bash
-cargo run -- --config examples/voicemux.yaml
+git clone https://github.com/dotCipher/voicemux.git
+cd voicemux
+sh scripts/install.sh
 ```
 
-Check it is up:
+Create the default config and start a background service:
+
+```bash
+sh scripts/install-service.sh install --bin "$HOME/.local/bin/voicemux"
+```
+
+Set provider keys, voice IDs, and local fallback URLs in `~/.config/voicemux/voicemux.yaml` and `~/.config/voicemux/voicemux.env`, then restart:
+
+```bash
+sh scripts/install-service.sh restart
+```
+
+Check that the service is up:
 
 ```bash
 curl http://127.0.0.1:8787/health
@@ -48,7 +62,7 @@ Synthesize speech through the active profile:
 ```bash
 curl -X POST http://127.0.0.1:8787/v1/audio/speech \
   -H 'content-type: application/json' \
-  -d '{"model":"tts-1","voice":"assistant","input":"voicemux is online"}' \
+  -d '{"model":"tts-1","voice":"assistant","input":"voicemux is online","response_format":"mp3"}' \
   --output speech.mp3
 ```
 
@@ -60,7 +74,7 @@ curl -X POST http://127.0.0.1:8787/v1/audio/transcriptions \
   -F "file=@speech.mp3;type=audio/mpeg"
 ```
 
-See [`docs/INSTALL.md`](docs/INSTALL.md) for prebuilt binaries and running `voicemux` as a background service on macOS, Linux, and Windows.
+See [`docs/INSTALL.md`](docs/INSTALL.md) for source installs, Windows, config, checksums, and service management. See [`docs/VOICEMODE.md`](docs/VOICEMODE.md) for the recommended Deepgram + ElevenLabs setup.
 
 ## How It Works
 
@@ -157,11 +171,12 @@ Why Rust: low overhead for an always-on proxy, strong async performance for conc
 
 Performance goals:
 
-- Stream TTS responses when providers support streaming.
-- Avoid buffering audio bodies unless a provider requires it.
+- Reuse the outbound HTTP client across requests.
 - Bound request sizes and timeouts.
 - Keep fallback decisions cheap and deterministic.
 - Avoid global locks on the request path.
+
+Streaming TTS passthrough is planned; the current implementation buffers each upstream response before returning it.
 
 ## Positioning
 

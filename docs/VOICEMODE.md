@@ -53,6 +53,30 @@ Deepgram is currently STT-only in `voicemux`, so voice aliases apply to TTS prov
 
 To use a specific ElevenLabs voice, set the `elevenlabs` value to that voice's ElevenLabs voice ID. VoiceMode continues to send the stable alias (`assistant`), while `voicemux` resolves the provider-specific voice ID.
 
+Define multiple named aliases to compare or switch voices without exposing raw provider IDs to VoiceMode:
+
+```yaml
+aliases:
+  voices:
+    assistant:
+      elevenlabs: ELEVENLABS_DEFAULT_VOICE_ID
+      local_kokoro: af_sky
+    bradford:
+      elevenlabs: ELEVENLABS_BRADFORD_VOICE_ID
+      local_kokoro: am_michael
+    hannah:
+      elevenlabs: ELEVENLABS_HANNAH_VOICE_ID
+      local_kokoro: af_sky
+```
+
+Add those aliases to VoiceMode:
+
+```env
+VOICEMODE_VOICES=assistant,bradford,hannah
+```
+
+Use `voice: "bradford"` or `voice: "hannah"` in a VoiceMode call to switch immediately. `voicemux` reads YAML at startup, so restart it after adding or changing aliases. It does not currently fail over between multiple ElevenLabs voice IDs; its fallback chain is between providers.
+
 ## Verification
 
 Confirm TTS is using ElevenLabs:

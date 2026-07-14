@@ -6,7 +6,7 @@ This document records the intended implementation stack and performance posture 
 
 Use Rust for the core service.
 
-`voicemux` is an always-on infrastructure proxy. It handles binary audio payloads, provider routing, fallback, timeouts, and streaming responses. Rust is the best fit for a small, reliable, high-performance service that should be easy to ship as a single binary.
+`voicemux` is an always-on infrastructure proxy. It handles binary audio payloads, provider routing, fallback, and request timeouts. Rust is the best fit for a small, reliable, high-performance service that should be easy to ship as a single binary.
 
 ## Runtime And HTTP
 
@@ -51,9 +51,9 @@ Recommended test approach:
 The MVP should be designed around these requirements:
 
 - Async request handling end to end.
-- Streaming TTS responses where supported.
+- Streaming TTS responses where supported in a future transport update.
 - Bounded request body sizes.
-- Configurable provider timeouts.
+- Configurable server request timeouts.
 - Connection reuse for provider clients.
 - No per-request config reparsing by default.
 - No unnecessary audio decoding, transcoding, or inspection.

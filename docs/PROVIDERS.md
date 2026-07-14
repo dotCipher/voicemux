@@ -9,9 +9,9 @@ The roadmap is adapter-family first:
 3. Provider capability discovery and richer policy.
 4. Optional realtime routing, only after HTTP routing is proven.
 
-## Provider Shape
+## Implemented Provider Shape
 
-Every provider should be represented as a typed config entry.
+Every provider is represented as a typed config entry. The currently implemented fields are:
 
 ```yaml
 providers:
@@ -19,27 +19,26 @@ providers:
     type: openai_audio
     base_url: http://127.0.0.1:8000/v1
     api_key_env: SPEACHES_API_KEY
-    timeout_seconds: 60
     capabilities: [stt, tts]
 ```
 
-Provider fields should be explicit and boring:
+Provider fields currently accepted by `voicemux`:
 
 - `type`: adapter family.
 - `base_url`: for OpenAI-compatible backends.
 - `api_key_env`: preferred secret reference.
 - `api_key`: direct key only for local placeholders or testing.
-- `timeout_seconds`: provider-specific timeout.
-- `capabilities`: optional explicit modality list: `stt`, `tts`, or both.
-- `models`: optional model alias/default overrides.
-- `voices`: optional voice alias/default overrides.
-- `headers`: optional static headers for local/internal backends.
+- `model`, `language`, and `output_format`: native adapter defaults where supported.
+- `smart_format` and `punctuate`: Deepgram STT options.
+- `capabilities` and `tags`: descriptive metadata.
+
+The server currently enforces `server.request_timeout_seconds`; per-provider `timeout_seconds` is reserved for a future release. Model and voice aliases live under the top-level `aliases` section, not individual provider entries.
 
 Secrets should be referenced through environment variables by default. Inline secrets should be discouraged in docs.
 
-## Adapter Contract
+## Planned Adapter Contract
 
-Internally, adapters should expose a small capability-oriented contract.
+The following capability-oriented contract is the design target, not the current Rust API.
 
 ```text
 ProviderAdapter

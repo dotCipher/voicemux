@@ -15,6 +15,13 @@ jobs:
     steps:
       - uses: actions/checkout@v5
 
+      - name: Verify tag matches package version
+        env:
+          TAG: ${{ github.ref_name }}
+        run: |
+          VERSION="$(grep -m 1 '^version = ' Cargo.toml | cut -d '"' -f 2)"
+          test "v$VERSION" = "$TAG"
+
       - name: Create GitHub release
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}

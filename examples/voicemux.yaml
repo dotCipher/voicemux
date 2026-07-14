@@ -1,7 +1,6 @@
 # Example voicemux configuration.
 #
-# This file shows the intended shape. Implementation details may change during
-# the prototype phase.
+# Copy this file and replace provider URLs, keys, and voice IDs for your setup.
 
 active_profile: hybrid
 
@@ -28,56 +27,42 @@ providers:
     api_key_env: DEEPGRAM_API_KEY
     model: nova-3
     language: auto
-    timeout_seconds: 20
-    tags: [cloud, low_latency]
 
   elevenlabs:
     type: elevenlabs_tts
     api_key_env: ELEVENLABS_API_KEY
     model: eleven_turbo_v2_5
     output_format: mp3_44100_128
-    timeout_seconds: 30
-    tags: [cloud, premium]
 
   speaches:
     type: openai_audio
     base_url: http://127.0.0.1:8000/v1
     api_key_env: SPEACHES_API_KEY
-    timeout_seconds: 60
     capabilities: [stt, tts]
-    tags: [local, private]
 
   voxbox:
     type: openai_audio
     base_url: http://127.0.0.1:8082/v1
     api_key: not-needed-but-openai-sdks-require-a-value
-    timeout_seconds: 60
     capabilities: [stt, tts]
-    tags: [local, private]
 
   litellm:
     type: openai_audio
     base_url: http://127.0.0.1:4000/v1
     api_key_env: LITELLM_API_KEY
-    timeout_seconds: 60
     capabilities: [stt, tts]
-    tags: [gateway]
 
   local_whisper:
     type: openai_stt
     base_url: http://127.0.0.1:2022/v1
     api_key: not-needed-but-openai-sdks-require-a-value
-    timeout_seconds: 60
     capabilities: [stt]
-    tags: [local, private]
 
   local_kokoro:
     type: openai_tts
     base_url: http://127.0.0.1:8880/v1
     api_key: not-needed-but-openai-sdks-require-a-value
-    timeout_seconds: 60
     capabilities: [tts]
-    tags: [local, private]
 
 aliases:
   models:
@@ -105,18 +90,8 @@ fallback:
   fallback_on_statuses: [408, 429, 500, 502, 503, 504]
   max_attempts_per_request: 2
 
-logging:
-  level: info
-  include_provider_latency: true
-  include_fallback_reason: true
-
 server:
   host: 127.0.0.1
   port: 8787
   max_body_bytes: 26214400
   request_timeout_seconds: 120
-
-performance:
-  stream_tts_responses: true
-  cache_provider_health_seconds: 10
-  hot_reload_config: false

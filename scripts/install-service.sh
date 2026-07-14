@@ -66,23 +66,19 @@ providers:
     api_key_env: DEEPGRAM_API_KEY
     model: nova-3
     language: auto
-    tags: [cloud, low_latency]
   elevenlabs:
     type: elevenlabs_tts
     api_key_env: ELEVENLABS_API_KEY
     model: eleven_turbo_v2_5
     output_format: mp3_44100_128
-    tags: [cloud, premium]
   local_whisper:
     type: openai_stt
     base_url: http://127.0.0.1:2022/v1
     api_key: not-needed
-    tags: [local, private]
   local_kokoro:
     type: openai_tts
     base_url: http://127.0.0.1:8880/v1
     api_key: not-needed
-    tags: [local, private]
 
 aliases:
   models:
@@ -96,6 +92,11 @@ aliases:
     assistant:
       elevenlabs: ELEVENLABS_VOICE_ID_HERE
       local_kokoro: af_sky
+
+fallback:
+  retry_timeouts: false
+  fallback_on_statuses: [408, 429, 500, 502, 503, 504]
+  max_attempts_per_request: 2
 
 server:
   host: 127.0.0.1
