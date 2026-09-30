@@ -29,6 +29,8 @@ Speech stacks are fragmented. One app supports OpenAI TTS, another supports Deep
 - Profiles for privacy, latency, cost, and quality.
 - Centralized routing, credentials, and observability.
 
+Security: `voicemux` has no request authentication. It only accepts loopback bind addresses, so expose it remotely through an authenticated reverse proxy rather than binding it directly to a LAN or public interface.
+
 ## Quick Start
 
 Install the latest verified release binary on macOS or Linux:

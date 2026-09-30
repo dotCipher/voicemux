@@ -50,6 +50,8 @@ The installer creates these files without overwriting an existing config:
 - macOS launchd agent: `~/Library/LaunchAgents/com.dotcipher.voicemux.plist`
 - Linux systemd user unit: `~/.config/systemd/user/voicemux.service`
 
+`voicemux` intentionally binds only to loopback addresses because its OpenAI-compatible endpoints have no request authentication. To use it from another machine, keep `voicemux` on loopback and put an authenticated reverse proxy in front of it.
+
 For the recommended cloud-first profile, add your provider keys to `~/.config/voicemux/voicemux.env`, set an ElevenLabs voice ID for the `assistant` alias in `~/.config/voicemux/voicemux.yaml`, then restart:
 
 ```bash
@@ -110,8 +112,8 @@ cargo run -- --config examples/voicemux.yaml
 3. Create and push an annotated matching tag:
 
 ```bash
-git tag -a v0.1.2 -m "v0.1.2"
-git push origin main v0.1.2
+git tag -a v0.1.3 -m "v0.1.3"
+git push origin main v0.1.3
 ```
 
 GitHub Actions validates that the tag matches the Cargo package version, builds archives and SHA-256 checksums for every supported target, and attaches them to the GitHub Release.

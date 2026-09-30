@@ -41,6 +41,10 @@ impl VoicemuxConfig {
             ));
         }
 
+        if !self.server.host.is_loopback() {
+            return Err(ConfigError::UnsafePublicBind(self.server.host));
+        }
+
         for (profile_name, profile) in &self.profiles {
             validate_route_chain(profile_name, Modality::Stt, &profile.stt, &self.providers)?;
             validate_route_chain(profile_name, Modality::Tts, &profile.tts, &self.providers)?;
@@ -286,6 +290,10 @@ pub enum ConfigError {
         provider: String,
         modality: Modality,
     },
+    #[error(
+        "server.host must be a loopback address because voicemux has no request authentication"
+    )]
+    UnsafePublicBind(IpAddr),
 }
 
 impl std::fmt::Display for Modality {
@@ -371,6 +379,28 @@ providers:
         assert!(
             matches!(error, ConfigError::UnknownActiveProfile(profile) if profile == "missing")
         );
+    }
+
+    #[test]
+    fn rejects_public_bind_without_authentication() {
+        let yaml = r#"
+active_profile: local
+profiles:
+  local:
+    stt: [local_whisper]
+    tts: [local_kokoro]
+providers:
+  local_whisper:
+    type: openai_stt
+  local_kokoro:
+    type: openai_tts
+server:
+  host: 0.0.0.0
+"#;
+
+        let error = VoicemuxConfig::from_yaml(yaml).expect_err("config should be invalid");
+
+        assert!(matches!(error, ConfigError::UnsafePublicBind(host) if host.is_unspecified()));
     }
 
     #[test]
