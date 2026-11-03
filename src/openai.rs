@@ -517,6 +517,7 @@ fn should_fallback_error(state: &AppState, error: &OpenAiProxyError) -> bool {
         | OpenAiProxyError::MissingVoice(_)
         | OpenAiProxyError::UnsupportedOutputFormat(_)
         | OpenAiProxyError::InvalidGiggyMode(_)
+        | OpenAiProxyError::UnexpectedUpstreamContentType(_)
         | OpenAiProxyError::MissingTranscriptionFile => false,
     }
 }
