@@ -529,7 +529,9 @@ fn should_fallback_error(state: &AppState, error: &OpenAiProxyError) -> bool {
         | OpenAiProxyError::MissingVoice(_)
         | OpenAiProxyError::UnsupportedOutputFormat(_)
         | OpenAiProxyError::InvalidGiggyMode(_)
-        | OpenAiProxyError::MissingTranscriptionFile => false,
+        | OpenAiProxyError::MissingTranscriptionFile
+        | OpenAiProxyError::GiggyTranscriptionRequiresStreaming
+        | OpenAiProxyError::InvalidGiggyTranscriptionAudio => false,
         OpenAiProxyError::UnexpectedUpstreamContentType(_) => true,
     }
 }
@@ -870,6 +872,10 @@ pub enum OpenAiProxyError {
     InvalidGiggyMode(String),
     #[error("transcription request must include a file field")]
     MissingTranscriptionFile,
+    #[error("Giggy transcription requires stream=true")]
+    GiggyTranscriptionRequiresStreaming,
+    #[error("Giggy transcription requires PCM16 mono 16 kHz WAV audio of at least 0.5 seconds")]
+    InvalidGiggyTranscriptionAudio,
 }
 
 impl OpenAiProxyError {
@@ -884,7 +890,9 @@ impl OpenAiProxyError {
             | Self::MissingVoice(_)
             | Self::UnsupportedOutputFormat(_)
             | Self::InvalidGiggyMode(_)
-            | Self::MissingTranscriptionFile => StatusCode::BAD_REQUEST,
+            | Self::MissingTranscriptionFile
+            | Self::GiggyTranscriptionRequiresStreaming
+            | Self::InvalidGiggyTranscriptionAudio => StatusCode::BAD_REQUEST,
             Self::Upstream(_) | Self::UpstreamJson(_) | Self::UnexpectedUpstreamContentType(_) => {
                 StatusCode::BAD_GATEWAY
             }
@@ -905,7 +913,9 @@ impl OpenAiProxyError {
             | Self::MissingVoice(_)
             | Self::UnsupportedOutputFormat(_)
             | Self::InvalidGiggyMode(_) => "invalid_speech_request",
-            Self::MissingTranscriptionFile => "invalid_transcription_request",
+            Self::MissingTranscriptionFile
+            | Self::GiggyTranscriptionRequiresStreaming
+            | Self::InvalidGiggyTranscriptionAudio => "invalid_transcription_request",
         }
     }
 }
@@ -940,26 +950,6 @@ mod tests {
                 .expect("example config should parse"),
         )
         .expect("app state should build")
-    }
-
-    fn pcm16_wav(sample_rate: u32, channels: u16, bits_per_sample: u16, frames: usize) -> Vec<u8> {
-        let data_len = frames * channels as usize * (bits_per_sample as usize / 8);
-        let mut wav = Vec::with_capacity(44 + data_len);
-        wav.extend_from_slice(b"RIFF");
-        wav.extend_from_slice(&(36u32 + data_len as u32).to_le_bytes());
-        wav.extend_from_slice(b"WAVEfmt ");
-        wav.extend_from_slice(&16u32.to_le_bytes());
-        wav.extend_from_slice(&1u16.to_le_bytes());
-        wav.extend_from_slice(&channels.to_le_bytes());
-        wav.extend_from_slice(&sample_rate.to_le_bytes());
-        let block_align = channels * (bits_per_sample / 8);
-        wav.extend_from_slice(&(sample_rate * block_align as u32).to_le_bytes());
-        wav.extend_from_slice(&block_align.to_le_bytes());
-        wav.extend_from_slice(&bits_per_sample.to_le_bytes());
-        wav.extend_from_slice(b"data");
-        wav.extend_from_slice(&(data_len as u32).to_le_bytes());
-        wav.resize(44 + data_len, 0);
-        wav
     }
 
     fn pcm16_wav(sample_rate: u32, channels: u16, bits_per_sample: u16, frames: usize) -> Vec<u8> {
@@ -1148,18 +1138,6 @@ mod tests {
         odd_pcm[4..8].copy_from_slice(&riff_len.to_le_bytes());
         odd_pcm[40..44].copy_from_slice(&16_001u32.to_le_bytes());
         assert!(!is_giggy_streaming_wav(&odd_pcm));
-    }
-
-    #[test]
-    fn giggy_stt_accepts_only_supported_pcm_wav() {
-        assert!(is_giggy_streaming_wav(&pcm16_wav(16_000, 1, 16, 8_000)));
-        assert!(!is_giggy_streaming_wav(&pcm16_wav(24_000, 1, 16, 8_000)));
-        assert!(!is_giggy_streaming_wav(&pcm16_wav(16_000, 2, 16, 8_000)));
-        assert!(!is_giggy_streaming_wav(&pcm16_wav(16_000, 1, 8, 16_000)));
-        assert!(!is_giggy_streaming_wav(&pcm16_wav(16_000, 1, 16, 7_999)));
-        let mut truncated = pcm16_wav(16_000, 1, 16, 8_000);
-        truncated.truncate(52);
-        assert!(!is_giggy_streaming_wav(&truncated));
     }
 
     #[test]
