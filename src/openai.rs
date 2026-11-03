@@ -990,9 +990,10 @@ mod tests {
         let server = std::thread::spawn(move || {
             let (mut socket, _) = listener.accept().expect("mock client should connect");
             let mut request = [0; 1024];
-            socket
+            let request_bytes = socket
                 .read(&mut request)
                 .expect("request should be readable");
+            assert!(request_bytes > 0, "mock request should not be empty");
             socket
                 .write_all(
                     b"HTTP/1.1 200 OK\r\nTransfer-Encoding: chunked\r\nContent-Type: audio/pcm;rate=24000\r\nConnection: close\r\n\r\n4\r\nABCD\r\n",
