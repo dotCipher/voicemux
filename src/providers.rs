@@ -263,7 +263,10 @@ impl NativeAdapter {
 
     fn supports_modality(&self, modality: Modality) -> bool {
         match modality {
-            Modality::Stt => matches!(self.provider_type, ProviderType::DeepgramStt),
+            Modality::Stt => matches!(
+                self.provider_type,
+                ProviderType::DeepgramStt | ProviderType::GiggyTts
+            ),
             Modality::Tts => matches!(
                 self.provider_type,
                 ProviderType::ElevenlabsTts | ProviderType::GiggyTts
