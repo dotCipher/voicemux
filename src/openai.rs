@@ -1001,9 +1001,10 @@ mod tests {
         let server = thread::spawn(move || {
             let (mut socket, _) = redirect.accept().expect("client should connect");
             let mut request = [0; 2048];
-            socket
+            let request_bytes = socket
                 .read(&mut request)
                 .expect("request should be readable");
+            assert!(request_bytes > 0, "request should not be empty");
             write!(
                 socket,
                 "HTTP/1.1 302 Found\r\nLocation: http://{target_address}/collect\r\nContent-Length: 0\r\nConnection: close\r\n\r\n"
