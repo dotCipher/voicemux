@@ -111,7 +111,7 @@ async fn proxy_giggy_speech(
     let model_id = plan.resolved_model.as_deref().or_else(|| adapter.model());
     let body = giggy_request_body(&text, voice_id, mode, output_format, model_id);
     let upstream_response = state
-        .client
+        .giggy_client
         .post("https://api.giggy.ai/v1/text-to-speech")
         .header("xi-api-key", adapter.api_key()?)
         .json(&body)
@@ -666,7 +666,7 @@ async fn proxy_giggy_transcription(
     }
 
     let upstream_response = state
-        .client
+        .giggy_client
         .post(giggy_transcription_url())
         .query(&[("mode", "streaming")])
         .header("xi-api-key", adapter.api_key()?)
@@ -953,7 +953,9 @@ mod tests {
     use futures_util::StreamExt;
     use std::io::{Read, Write};
     use std::net::TcpListener;
-    use std::time::Duration;
+    use std::sync::mpsc;
+    use std::thread;
+    use std::time::{Duration, Instant};
 
     fn app_state() -> AppState {
         AppState::new(
@@ -961,6 +963,65 @@ mod tests {
                 .expect("example config should parse"),
         )
         .expect("app state should build")
+    }
+
+    #[tokio::test]
+    async fn giggy_http_client_does_not_forward_api_key_on_redirect() {
+        let target = TcpListener::bind("127.0.0.1:0").expect("target should bind");
+        target
+            .set_nonblocking(true)
+            .expect("target should be nonblocking");
+        let target_address = target.local_addr().expect("target should have an address");
+        let (seen_tx, seen_rx) = mpsc::channel();
+        let target_thread = thread::spawn(move || {
+            let deadline = Instant::now() + Duration::from_secs(2);
+            while Instant::now() < deadline {
+                match target.accept() {
+                    Ok((mut socket, _)) => {
+                        let mut request = [0; 2048];
+                        let read = socket.read(&mut request).unwrap_or(0);
+                        let _ = socket.write_all(
+                            b"HTTP/1.1 200 OK\r\nContent-Length: 0\r\nConnection: close\r\n\r\n",
+                        );
+                        let _ = seen_tx.send(request[..read].to_vec());
+                        return;
+                    }
+                    Err(error) if error.kind() == std::io::ErrorKind::WouldBlock => {
+                        thread::sleep(Duration::from_millis(10));
+                    }
+                    Err(_) => return,
+                }
+            }
+        });
+
+        let redirect = TcpListener::bind("127.0.0.1:0").expect("redirect should bind");
+        let redirect_address = redirect
+            .local_addr()
+            .expect("redirect should have an address");
+        let server = thread::spawn(move || {
+            let (mut socket, _) = redirect.accept().expect("client should connect");
+            let mut request = [0; 2048];
+            socket
+                .read(&mut request)
+                .expect("request should be readable");
+            write!(
+                socket,
+                "HTTP/1.1 302 Found\r\nLocation: http://{target_address}/collect\r\nContent-Length: 0\r\nConnection: close\r\n\r\n"
+            )
+            .expect("redirect should be sent");
+        });
+
+        let response = app_state()
+            .giggy_client
+            .get(format!("http://{redirect_address}/start"))
+            .header("xi-api-key", "test-only-key")
+            .send()
+            .await
+            .expect("redirect response should be returned without following it");
+        assert_eq!(response.status(), StatusCode::FOUND);
+        server.join().expect("redirect server should finish");
+        assert!(seen_rx.recv_timeout(Duration::from_millis(100)).is_err());
+        target_thread.join().expect("target monitor should finish");
     }
 
     fn pcm16_wav(sample_rate: u32, channels: u16, bits_per_sample: u16, frames: usize) -> Vec<u8> {
