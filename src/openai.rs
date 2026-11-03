@@ -333,7 +333,7 @@ fn is_giggy_pcm_content_type(content_type: &str) -> bool {
         .filter(|(name, _)| name.trim().eq_ignore_ascii_case("rate"))
         .map(|(_, value)| value.trim())
         .collect();
-    media_type.eq_ignore_ascii_case("audio/pcm") && rates.iter().all(|rate| *rate == "24000")
+    media_type.eq_ignore_ascii_case("audio/pcm") && rates.len() == 1 && rates[0] == "24000"
 }
 
 async fn response_from_upstream(
@@ -496,13 +496,14 @@ async fn proxy_transcription_attempt(
         ProviderAdapter::DeepgramStt(adapter) => {
             proxy_deepgram_transcription(state, adapter, plan, request).await
         }
-        ProviderAdapter::ElevenlabsTts(adapter) | ProviderAdapter::GiggyTts(adapter) => {
-            Err(ProviderError::UnsupportedPassthrough {
-                provider: adapter.name().to_string(),
-                endpoint: "/v1/audio/transcriptions",
-            }
-            .into())
+        ProviderAdapter::GiggyTts(adapter) => {
+            proxy_giggy_transcription(state, adapter, plan, request).await
         }
+        ProviderAdapter::ElevenlabsTts(adapter) => Err(ProviderError::UnsupportedPassthrough {
+            provider: adapter.name().to_string(),
+            endpoint: "/v1/audio/transcriptions",
+        }
+        .into()),
     }
 }
 
@@ -642,6 +643,130 @@ async fn proxy_deepgram_transcription(
         .into_response())
 }
 
+async fn proxy_giggy_transcription(
+    state: &AppState,
+    adapter: &NativeAdapter,
+    plan: &RoutePlan,
+    request: TranscriptionRequest,
+) -> Result<Response, OpenAiProxyError> {
+    if !request
+        .text_field("stream")
+        .is_some_and(|value| value.eq_ignore_ascii_case("true"))
+    {
+        return Err(OpenAiProxyError::GiggyTranscriptionRequiresStreaming);
+    }
+
+    let file = request
+        .file_field()
+        .ok_or(OpenAiProxyError::MissingTranscriptionFile)?;
+    if !is_giggy_streaming_wav(&file.bytes) {
+        return Err(OpenAiProxyError::InvalidGiggyTranscriptionAudio);
+    }
+
+    let upstream_response = state
+        .client
+        .post(giggy_transcription_url())
+        .query(&[("mode", "streaming")])
+        .header("xi-api-key", adapter.api_key()?)
+        .header(header::CONTENT_TYPE, "audio/wav")
+        .body(file.bytes.clone())
+        .send()
+        .await?;
+    response_from_upstream_event_stream(upstream_response, plan).await
+}
+
+async fn response_from_upstream_event_stream(
+    upstream_response: reqwest::Response,
+    plan: &RoutePlan,
+) -> Result<Response, OpenAiProxyError> {
+    let status = upstream_response.status();
+    if !status.is_success() {
+        return response_from_upstream(upstream_response, "application/json", plan).await;
+    }
+
+    let content_type = upstream_response
+        .headers()
+        .get(header::CONTENT_TYPE.as_str())
+        .cloned();
+    let content_type_text = content_type
+        .as_ref()
+        .and_then(|value| value.to_str().ok())
+        .unwrap_or("missing");
+    let media_type = content_type_text
+        .split(';')
+        .next()
+        .unwrap_or_default()
+        .trim();
+    if !media_type.eq_ignore_ascii_case("text/event-stream") {
+        return Err(OpenAiProxyError::UnexpectedUpstreamContentType(
+            content_type_text.to_string(),
+        ));
+    }
+
+    let mut headers = upstream_headers(content_type, "text/event-stream");
+    insert_route_headers(&mut headers, plan);
+    let body = Body::from_stream(upstream_response.bytes_stream());
+    Ok((
+        StatusCode::from_u16(status.as_u16()).unwrap_or(StatusCode::BAD_GATEWAY),
+        headers,
+        body,
+    )
+        .into_response())
+}
+
+fn giggy_transcription_url() -> Url {
+    Url::parse("https://api.giggy.ai/v1/audio/transcriptions")
+        .expect("static Giggy transcription URL should parse")
+}
+
+fn is_giggy_streaming_wav(bytes: &[u8]) -> bool {
+    if bytes.len() < 44 || &bytes[0..4] != b"RIFF" || &bytes[8..12] != b"WAVE" {
+        return false;
+    }
+    let riff_size = u32::from_le_bytes(bytes[4..8].try_into().unwrap()) as usize;
+    if riff_size + 8 > bytes.len() {
+        return false;
+    }
+
+    let mut cursor = 12usize;
+    let mut valid_format = false;
+    let mut audio_bytes = None;
+    while cursor.saturating_add(8) <= bytes.len() {
+        let id = &bytes[cursor..cursor + 4];
+        let chunk_len =
+            u32::from_le_bytes(bytes[cursor + 4..cursor + 8].try_into().unwrap()) as usize;
+        let start = cursor + 8;
+        let Some(end) = start.checked_add(chunk_len) else {
+            return false;
+        };
+        if end > bytes.len() {
+            return false;
+        }
+
+        if id == b"fmt " && chunk_len >= 16 {
+            let format = u16::from_le_bytes(bytes[start..start + 2].try_into().unwrap());
+            let channels = u16::from_le_bytes(bytes[start + 2..start + 4].try_into().unwrap());
+            let sample_rate = u32::from_le_bytes(bytes[start + 4..start + 8].try_into().unwrap());
+            let byte_rate = u32::from_le_bytes(bytes[start + 8..start + 12].try_into().unwrap());
+            let block_align = u16::from_le_bytes(bytes[start + 12..start + 14].try_into().unwrap());
+            let bits_per_sample =
+                u16::from_le_bytes(bytes[start + 14..start + 16].try_into().unwrap());
+            valid_format = format == 1
+                && channels == 1
+                && sample_rate == 16_000
+                && byte_rate == 32_000
+                && block_align == 2
+                && bits_per_sample == 16;
+        } else if id == b"data" {
+            audio_bytes = Some(chunk_len);
+        }
+
+        cursor = end + (chunk_len % 2);
+    }
+
+    valid_format && audio_bytes.is_some_and(|length| length >= 16_000 && length % 2 == 0)
+}
+
 fn upstream_headers(
     content_type: Option<HeaderValue>,
     fallback_content_type: &'static str,
@@ -727,7 +852,7 @@ pub enum OpenAiProxyError {
     Upstream(#[from] reqwest::Error),
     #[error("upstream response was not valid json: {0}")]
     UpstreamJson(#[from] serde_json::Error),
-    #[error("Giggy streaming TTS expected audio/pcm but upstream returned '{0}'")]
+    #[error("upstream returned unsupported content type '{0}'")]
     UnexpectedUpstreamContentType(String),
     #[error("multipart request failed: {0}")]
     Multipart(#[from] axum::extract::multipart::MultipartError),
@@ -815,6 +940,46 @@ mod tests {
                 .expect("example config should parse"),
         )
         .expect("app state should build")
+    }
+
+    fn pcm16_wav(sample_rate: u32, channels: u16, bits_per_sample: u16, frames: usize) -> Vec<u8> {
+        let data_len = frames * channels as usize * (bits_per_sample as usize / 8);
+        let mut wav = Vec::with_capacity(44 + data_len);
+        wav.extend_from_slice(b"RIFF");
+        wav.extend_from_slice(&(36u32 + data_len as u32).to_le_bytes());
+        wav.extend_from_slice(b"WAVEfmt ");
+        wav.extend_from_slice(&16u32.to_le_bytes());
+        wav.extend_from_slice(&1u16.to_le_bytes());
+        wav.extend_from_slice(&channels.to_le_bytes());
+        wav.extend_from_slice(&sample_rate.to_le_bytes());
+        let block_align = channels * (bits_per_sample / 8);
+        wav.extend_from_slice(&(sample_rate * block_align as u32).to_le_bytes());
+        wav.extend_from_slice(&block_align.to_le_bytes());
+        wav.extend_from_slice(&bits_per_sample.to_le_bytes());
+        wav.extend_from_slice(b"data");
+        wav.extend_from_slice(&(data_len as u32).to_le_bytes());
+        wav.resize(44 + data_len, 0);
+        wav
+    }
+
+    fn pcm16_wav(sample_rate: u32, channels: u16, bits_per_sample: u16, frames: usize) -> Vec<u8> {
+        let data_len = frames * channels as usize * (bits_per_sample as usize / 8);
+        let mut wav = Vec::with_capacity(44 + data_len);
+        wav.extend_from_slice(b"RIFF");
+        wav.extend_from_slice(&(36u32 + data_len as u32).to_le_bytes());
+        wav.extend_from_slice(b"WAVEfmt ");
+        wav.extend_from_slice(&16u32.to_le_bytes());
+        wav.extend_from_slice(&1u16.to_le_bytes());
+        wav.extend_from_slice(&channels.to_le_bytes());
+        wav.extend_from_slice(&sample_rate.to_le_bytes());
+        let block_align = channels * (bits_per_sample / 8);
+        wav.extend_from_slice(&(sample_rate * block_align as u32).to_le_bytes());
+        wav.extend_from_slice(&block_align.to_le_bytes());
+        wav.extend_from_slice(&bits_per_sample.to_le_bytes());
+        wav.extend_from_slice(b"data");
+        wav.extend_from_slice(&(data_len as u32).to_le_bytes());
+        wav.resize(44 + data_len, 0);
+        wav
     }
 
     #[test]
@@ -949,9 +1114,12 @@ mod tests {
         assert!(is_giggy_pcm_content_type(
             " Audio/PCM ; channels=1; rate=24000 "
         ));
-        assert!(is_giggy_pcm_content_type("audio/pcm"));
+        assert!(!is_giggy_pcm_content_type("audio/pcm"));
         assert!(!is_giggy_pcm_content_type("audio/pcmx;rate=24000"));
         assert!(!is_giggy_pcm_content_type("audio/pcm;rate=16000"));
+        assert!(!is_giggy_pcm_content_type(
+            "audio/pcm;rate=24000;rate=16000"
+        ));
     }
 
     #[test]
@@ -959,6 +1127,39 @@ mod tests {
         let state = app_state();
         let error = OpenAiProxyError::UnexpectedUpstreamContentType("application/json".into());
         assert!(should_fallback_error(&state, &error));
+    }
+
+    #[test]
+    fn giggy_stt_accepts_only_supported_pcm_wav() {
+        assert!(is_giggy_streaming_wav(&pcm16_wav(16_000, 1, 16, 8_000)));
+        assert!(!is_giggy_streaming_wav(&pcm16_wav(24_000, 1, 16, 8_000)));
+        assert!(!is_giggy_streaming_wav(&pcm16_wav(16_000, 2, 16, 8_000)));
+        assert!(!is_giggy_streaming_wav(&pcm16_wav(16_000, 1, 8, 16_000)));
+        assert!(!is_giggy_streaming_wav(&pcm16_wav(16_000, 1, 16, 7_999)));
+        let mut truncated = pcm16_wav(16_000, 1, 16, 8_000);
+        truncated.truncate(52);
+        assert!(!is_giggy_streaming_wav(&truncated));
+        let mut inconsistent_riff_size = pcm16_wav(16_000, 1, 16, 8_000);
+        inconsistent_riff_size[4..8].copy_from_slice(&u32::MAX.to_le_bytes());
+        assert!(!is_giggy_streaming_wav(&inconsistent_riff_size));
+        let mut odd_pcm = pcm16_wav(16_000, 1, 16, 8_000);
+        odd_pcm.push(0);
+        let riff_len = (odd_pcm.len() - 8) as u32;
+        odd_pcm[4..8].copy_from_slice(&riff_len.to_le_bytes());
+        odd_pcm[40..44].copy_from_slice(&16_001u32.to_le_bytes());
+        assert!(!is_giggy_streaming_wav(&odd_pcm));
+    }
+
+    #[test]
+    fn giggy_stt_accepts_only_supported_pcm_wav() {
+        assert!(is_giggy_streaming_wav(&pcm16_wav(16_000, 1, 16, 8_000)));
+        assert!(!is_giggy_streaming_wav(&pcm16_wav(24_000, 1, 16, 8_000)));
+        assert!(!is_giggy_streaming_wav(&pcm16_wav(16_000, 2, 16, 8_000)));
+        assert!(!is_giggy_streaming_wav(&pcm16_wav(16_000, 1, 8, 16_000)));
+        assert!(!is_giggy_streaming_wav(&pcm16_wav(16_000, 1, 16, 7_999)));
+        let mut truncated = pcm16_wav(16_000, 1, 16, 8_000);
+        truncated.truncate(52);
+        assert!(!is_giggy_streaming_wav(&truncated));
     }
 
     #[test]
@@ -1076,6 +1277,101 @@ mod tests {
             .expect("second chunk should arrive")
             .expect("second chunk should be valid");
         assert_eq!(second.as_ref(), b"EFGH");
+        server.join().expect("mock server should finish");
+    }
+
+    #[tokio::test]
+    async fn forwards_giggy_transcription_events_before_upstream_completes() {
+        let listener = TcpListener::bind("127.0.0.1:0").expect("mock server should bind");
+        let address = listener
+            .local_addr()
+            .expect("mock server should have an address");
+        let server = std::thread::spawn(move || {
+            let (mut socket, _) = listener.accept().expect("mock client should connect");
+            let mut request = [0; 1024];
+            let request_bytes = socket
+                .read(&mut request)
+                .expect("request should be readable");
+            assert!(request_bytes > 0, "mock request should not be empty");
+
+            let first = b"data: {\"type\":\"transcript_chunk\"}\n\n";
+            socket
+                .write_all(
+                    format!(
+                        "HTTP/1.1 200 OK\r\nTransfer-Encoding: chunked\r\nContent-Type: text/event-stream\r\nConnection: close\r\n\r\n{:X}\r\n",
+                        first.len()
+                    )
+                    .as_bytes(),
+                )
+                .expect("response header should be sent");
+            socket
+                .write_all(first)
+                .expect("first transcript event should be sent");
+            socket
+                .write_all(b"\r\n")
+                .expect("first chunk should be terminated");
+            socket.flush().expect("first event should be flushed");
+            std::thread::sleep(Duration::from_millis(300));
+
+            let terminal = b"data: [DONE]\n\n";
+            socket
+                .write_all(format!("{:X}\r\n", terminal.len()).as_bytes())
+                .expect("terminal chunk header should be sent");
+            socket
+                .write_all(terminal)
+                .expect("terminal event should be sent");
+            socket
+                .write_all(b"\r\n0\r\n\r\n")
+                .expect("chunked response should complete");
+        });
+
+        let upstream = reqwest::Client::new()
+            .get(format!("http://{address}/transcriptions"))
+            .send()
+            .await
+            .expect("mock response should arrive");
+        let plan = RoutePlan {
+            profile: "live".to_string(),
+            modality: Modality::Stt,
+            route: vec!["giggy".to_string()],
+            selected_provider: "giggy".to_string(),
+            resolved_model: Some("giggyspeech".to_string()),
+            resolved_voice: None,
+            response_format: None,
+        };
+        let response = response_from_upstream_event_stream(upstream, &plan)
+            .await
+            .expect("streaming response should be constructed");
+        assert_eq!(response.status(), StatusCode::OK);
+        assert!(response.headers()[header::CONTENT_TYPE]
+            .to_str()
+            .unwrap()
+            .starts_with("text/event-stream"));
+
+        let mut events = response.into_body().into_data_stream();
+        let first = events
+            .next()
+            .await
+            .expect("first event should arrive")
+            .expect("first event should be valid");
+        assert!(first
+            .as_ref()
+            .windows(b"transcript_chunk".len())
+            .any(|window| window == b"transcript_chunk"));
+        assert!(
+            tokio::time::timeout(Duration::from_millis(100), events.next())
+                .await
+                .is_err()
+        );
+        let terminal = events
+            .next()
+            .await
+            .expect("terminal event should arrive")
+            .expect("terminal event should be valid");
+        assert!(terminal
+            .as_ref()
+            .windows(b"[DONE]".len())
+            .any(|window| window == b"[DONE]"));
         server.join().expect("mock server should finish");
     }
 

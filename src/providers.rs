@@ -351,7 +351,7 @@ mod tests {
 active_profile: test
 profiles:
   test:
-    stt: [local_whisper]
+    stt: [giggy]
     tts: [giggy]
 providers:
   local_whisper:
@@ -374,7 +374,7 @@ aliases:
         let giggy = &adapters["giggy"];
 
         assert!(giggy.supports_modality(Modality::Tts));
-        assert!(!giggy.supports_modality(Modality::Stt));
+        assert!(giggy.supports_modality(Modality::Stt));
         assert_eq!(giggy.descriptor().provider_type, ProviderType::GiggyTts);
         let ProviderAdapter::GiggyTts(native) = giggy else {
             panic!("expected Giggy native adapter");

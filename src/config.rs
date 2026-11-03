@@ -146,7 +146,10 @@ impl ProviderConfig {
         match modality {
             Modality::Stt => matches!(
                 self.provider_type,
-                ProviderType::OpenaiAudio | ProviderType::OpenaiStt | ProviderType::DeepgramStt
+                ProviderType::OpenaiAudio
+                    | ProviderType::OpenaiStt
+                    | ProviderType::DeepgramStt
+                    | ProviderType::GiggyTts
             ),
             Modality::Tts => matches!(
                 self.provider_type,

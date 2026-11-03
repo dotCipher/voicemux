@@ -182,6 +182,8 @@ aliases:
 
 Giggy requests use `xi-api-key` authentication and send `text`, `voice_id`, `mode: streaming`, and `output_format: pcm_24000` to `/v1/text-to-speech`. Giggy returns raw PCM16 little-endian, mono, 24 kHz audio progressively; VoiceMux forwards the upstream body stream to `/v1/audio/speech` without buffering the complete audio. OpenAI `response_format: pcm` selects this format. Other Giggy modes and output formats are rejected because they do not provide the streaming response this adapter promises. The model compatibility field is sent only when supplied through the route or provider config.
 
+Giggy also supports uploaded-recording STT through `/v1/audio/transcriptions` when the request includes `stream=true`. VoiceMux accepts PCM16 mono 16 kHz WAV files of at least 0.5 seconds, sends the WAV to Giggy with `mode=streaming`, and forwards the native SSE response progressively. `transcript_chunk` events contain cumulative, revisable text; replace the displayed preview instead of appending each event. This route streams results for uploaded recordings. It does not expose Giggy's separate live-microphone WebSocket session.
+
 Rule:
 
 Native adapters should be added only when they materially improve compatibility, latency, streaming, auth, or UX over routing through a generic OpenAI-compatible backend or LiteLLM.
