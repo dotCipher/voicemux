@@ -1,450 +1,1 @@
-# Provider Roadmap
-
-`voicemux` should support many speech providers without turning into a pile of provider-specific glue. The broader feature plan lives in [`../ROADMAP.md`](../ROADMAP.md); this document focuses on provider adapter shape and provider rollout order.
-
-The roadmap is adapter-family first:
-
-1. Generic OpenAI-compatible audio adapters.
-2. Native adapters for high-value providers that need translation.
-3. Provider capability discovery and richer policy.
-4. Optional realtime routing, only after HTTP routing is proven.
-
-## Implemented Provider Shape
-
-Every provider is represented as a typed config entry. The currently implemented fields are:
-
-```yaml
-providers:
-  speaches:
-    type: openai_audio
-    base_url: http://127.0.0.1:8000/v1
-    api_key_env: SPEACHES_API_KEY
-    capabilities: [stt, tts]
-```
-
-Provider fields currently accepted by `voicemux`:
-
-- `type`: adapter family.
-- `base_url`: for OpenAI-compatible backends.
-- `api_key_env`: preferred secret reference.
-- `api_key`: direct key only for local placeholders or testing.
-- `model`, `language`, and `output_format`: native adapter defaults where supported.
-- `smart_format` and `punctuate`: Deepgram STT options.
-- `capabilities` and `tags`: descriptive metadata.
-
-The server currently enforces `server.request_timeout_seconds`; per-provider `timeout_seconds` is reserved for a future release. Model and voice aliases live under the top-level `aliases` section, not individual provider entries.
-
-Secrets should be referenced through environment variables by default. Inline secrets should be discouraged in docs.
-
-## Planned Adapter Contract
-
-The following capability-oriented contract is the design target, not the current Rust API.
-
-```text
-ProviderAdapter
-  name() -> ProviderName
-  capabilities() -> ProviderCapabilities
-  health() -> ProviderHealth
-  transcribe(request) -> TranscriptionResult, if STT-capable
-  synthesize(request) -> SpeechStream, if TTS-capable
-```
-
-The router owns:
-
-- profile selection
-- route-chain ordering
-- alias resolution
-- fallback decisions
-- max attempts
-- logging and timing
-
-Adapters own:
-
-- provider-specific request translation
-- provider-specific auth headers
-- provider-specific response normalization
-- provider-specific health checks
-- provider-specific supported formats
-
-## Capability Model
-
-Capabilities should drive routing, not provider names.
-
-Core capabilities:
-
-- `stt`: can serve `/v1/audio/transcriptions`.
-- `tts`: can serve `/v1/audio/speech`.
-
-Optional capability flags:
-
-- `streaming_tts`: can stream TTS responses.
-- `streaming_stt`: can stream transcription responses.
-- `translations`: can serve `/v1/audio/translations`.
-- `voices`: can list voices.
-- `models`: can list models.
-- `realtime`: supports realtime sessions.
-- `local`: runs locally or on user infrastructure.
-- `cloud`: sends requests to a hosted third-party API.
-
-The MVP should only require `stt` and `tts`. Everything else can be advisory metadata until implemented.
-
-## Roadmap Tiers
-
-### Tier 0: OpenAI-Compatible Foundation
-
-Goal: make `voicemux` useful with the broadest set of existing tools with minimal code.
-
-Adapters:
-
-- `openai_stt`: backend implements `/v1/audio/transcriptions`.
-- `openai_tts`: backend implements `/v1/audio/speech`.
-- `openai_audio`: backend implements both.
-
-Backends supported through this tier:
-
-- Speaches
-- Vox Box
-- LiteLLM
-- OpenAI
-- local Whisper-compatible servers
-- local Kokoro-compatible servers
-- any hosted OpenAI-compatible audio endpoint
-
-Why first:
-
-- This makes Speaches and Vox Box immediate backend targets.
-- This gives the project broad compatibility without native integrations.
-- This validates routing, aliases, fallback, and streaming before provider sprawl.
-
-### Tier 1: High-Value Native Adapters
-
-Goal: support providers that users strongly want and that do not naturally expose OpenAI-compatible audio endpoints.
-
-Initial native adapters:
-
-- `deepgram_stt`
-- `elevenlabs_tts`
-- `giggy_tts`
-
-Deepgram STT shape:
-
-```yaml
-providers:
-  deepgram:
-    type: deepgram_stt
-    api_key_env: DEEPGRAM_API_KEY
-    model: nova-3
-    language: auto
-    smart_format: true
-    punctuate: true
-    timeout_seconds: 20
-```
-
-ElevenLabs TTS shape:
-
-```yaml
-providers:
-  elevenlabs:
-    type: elevenlabs_tts
-    api_key_env: ELEVENLABS_API_KEY
-    model: eleven_turbo_v2_5
-    output_format: mp3_44100_128
-    timeout_seconds: 30
-```
-
-Why these first:
-
-- Deepgram is a strong STT default for latency and quality.
-- ElevenLabs is a strong TTS default for voice quality.
-- They are common choices in voice stacks.
-- Existing local Python proxy experiments already clarify the translation shape.
-
-Giggy.ai TTS is configured as a native OpenAI-edge adapter:
-
-```yaml
-providers:
-  giggy:
-    type: giggy_tts
-    api_key_env: GIGGY_API_KEY
-    mode: streaming
-    output_format: pcm_24000
-    model: giggyspeech # optional compatibility field
-
-profiles:
-  hybrid:
-    tts: [giggy, local_kokoro]
-
-aliases:
-  voices:
-    assistant:
-      giggy: "YOUR_GIGGY_VOICE_UUID"
-```
-
-Giggy requests use `xi-api-key` authentication and send `text`, `voice_id`, `mode: streaming`, and `output_format: pcm_24000` to `/v1/text-to-speech`. Giggy returns raw PCM16 little-endian, mono, 24 kHz audio progressively; VoiceMux forwards the upstream body stream to `/v1/audio/speech` without buffering the complete audio. OpenAI `response_format: pcm` selects this format. Other Giggy modes and output formats are rejected because they do not provide the streaming response this adapter promises. The model compatibility field is sent only when supplied through the route or provider config.
-
-Rule:
-
-Native adapters should be added only when they materially improve compatibility, latency, streaming, auth, or UX over routing through a generic OpenAI-compatible backend or LiteLLM.
-
-### Tier 2: Common Cloud Speech Providers
-
-Goal: add native adapters where there is clear demand and no better generic path.
-
-STT candidates:
-
-- Groq Whisper
-- AssemblyAI
-- Speechmatics
-- Soniox
-- Azure Speech
-- Google Speech-to-Text
-- AWS Transcribe
-- Cloudflare Workers AI Whisper
-- NVIDIA Riva
-
-TTS candidates:
-
-- Cartesia
-- Deepgram Aura
-- Azure Speech
-- Google Cloud TTS
-- AWS Polly
-- PlayHT
-- Resemble AI
-- Fish Audio
-- Rime
-- LMNT
-- NVIDIA Riva
-
-Selection criteria:
-
-- user demand
-- provider quality/latency
-- pricing/free tier usefulness
-- streaming support
-- stable API
-- whether LiteLLM already solves it well enough
-- whether a generic OpenAI-compatible adapter can already cover it
-
-### Tier 3: Discovery And Advanced Policy
-
-Goal: make providers easier to inspect and route intelligently.
-
-Features:
-
-- `GET /v1/voices`
-- `GET /v1/providers`
-- `GET /v1/profiles`
-- provider model discovery
-- provider voice discovery
-- provider health cache
-- per-provider circuit breaker
-- per-provider cost metadata
-- policy tags like `local`, `cloud`, `cheap`, `premium`, `low_latency`
-
-Example:
-
-```yaml
-providers:
-  cartesia:
-    type: cartesia_tts
-    api_key_env: CARTESIA_API_KEY
-    tags: [cloud, low_latency]
-
-  speaches:
-    type: openai_audio
-    base_url: http://127.0.0.1:8000/v1
-    tags: [local, private]
-```
-
-### Tier 4: Realtime
-
-Goal: evaluate OpenAI Realtime-compatible routing without compromising the HTTP proxy.
-
-Realtime is intentionally later because it changes the product shape:
-
-- WebSocket sessions
-- bidirectional audio streaming
-- partial transcripts
-- turn detection
-- barge-in/interruptions
-- provider-specific session state
-
-Initial realtime candidates:
-
-- OpenAI Realtime
-- Speaches Realtime
-- LiteLLM realtime-compatible paths, if mature
-
-Realtime should likely be a separate adapter path or package rather than bolted onto the HTTP route-chain MVP.
-
-## Provider Types
-
-### `openai_audio`
-
-Combined OpenAI-compatible STT/TTS backend.
-
-Expected endpoints:
-
-- `POST {base_url}/audio/transcriptions`
-- `POST {base_url}/audio/speech`
-
-Optional endpoints:
-
-- `GET {base_url}/models`
-- `GET {base_url}/voices`
-- provider-specific health endpoint
-
-Use for:
-
-- Speaches
-- Vox Box
-- LiteLLM
-- OpenAI-compatible local stacks
-
-### `openai_stt`
-
-OpenAI-compatible STT-only backend.
-
-Expected endpoint:
-
-- `POST {base_url}/audio/transcriptions`
-
-Use for:
-
-- Whisper-compatible servers
-- hosted OpenAI-compatible transcription endpoints
-
-### `openai_tts`
-
-OpenAI-compatible TTS-only backend.
-
-Expected endpoint:
-
-- `POST {base_url}/audio/speech`
-
-Use for:
-
-- Kokoro servers
-- Chatterbox servers
-- OpenAI-compatible TTS servers
-
-### `deepgram_stt`
-
-Native STT adapter that translates OpenAI transcription requests to Deepgram `/v1/listen`.
-
-OpenAI request fields to map:
-
-- `file`
-- `model`
-- `language`
-- `prompt`, likely as keywords/context where appropriate
-- `response_format`
-
-Deepgram options to expose:
-
-- `model`
-- `language`
-- `smart_format`
-- `punctuate`
-- `diarize`, later
-- `keywords`, later
-
-### `elevenlabs_tts`
-
-Native TTS adapter that translates OpenAI speech requests to ElevenLabs TTS.
-
-OpenAI request fields to map:
-
-- `input`
-- `model`
-- `voice`
-- `response_format`
-- `speed`
-
-ElevenLabs options to expose:
-
-- `model`
-- `output_format`
-- `voice_settings`
-- voice aliases
-
-MVP should prefer provider-native MP3 output. PCM/WAV transcoding should not be in the core request path unless later justified.
-
-## Alias Shape
-
-Aliases should let clients use portable names.
-
-```yaml
-aliases:
-  models:
-    whisper-1:
-      deepgram: nova-3
-      speaches: Systran/faster-distil-whisper-small.en
-      voxbox: whisper-large-v3
-
-    tts-1:
-      elevenlabs: eleven_turbo_v2_5
-      speaches: speaches-ai/Kokoro-82M-v1.0-ONNX
-      voxbox: cosyvoice
-
-  voices:
-    assistant:
-      elevenlabs: ELEVENLABS_VOICE_ID_HERE
-      speaches: af_heart
-      voxbox: English Female
-```
-
-Resolution order:
-
-1. Use provider-specific alias if present.
-2. Use request value directly if provider accepts direct IDs.
-3. Use provider default if configured.
-4. Fail clearly if no usable model/voice exists.
-
-## Fallback Shape
-
-Fallback should be route-chain based and bounded.
-
-```yaml
-profiles:
-  hybrid:
-    stt: [deepgram, speaches]
-    tts: [elevenlabs, speaches]
-
-fallback:
-  fallback_on_statuses: [408, 429, 500, 502, 503, 504]
-  max_attempts_per_request: 2
-  retry_timeouts: false
-```
-
-Provider failures should produce logs like:
-
-```text
-modality=tts profile=hybrid attempted=elevenlabs,speaches winner=speaches fallback_reason=provider_503 latency_ms=840
-```
-
-## First Implementation Order
-
-1. Config types for providers, profiles, aliases, server limits, and fallback.
-2. Generic `openai_audio`, `openai_stt`, and `openai_tts` adapters.
-3. Route-chain selection and bounded fallback.
-4. Mock-provider tests for STT/TTS success, timeout, and fallback.
-5. Speaches or Vox Box local validation through `openai_audio`.
-6. VoiceMode/OpenAI SDK docs against the generic adapter path.
-7. Deepgram native adapter.
-8. ElevenLabs native adapter.
-9. Provider discovery endpoints.
-10. Additional cloud-native adapters based on demand.
-
-## Non-Goals
-
-Provider support should not pull `voicemux` into these areas early:
-
-- provider SDK dependency sprawl
-- local model downloading
-- audio transcoding
-- chat-completions proxying
-- realtime session orchestration
-- billing dashboard
-- hosted SaaS control plane
+YªçŠx³¬uç%j·Â+ar‰ì¶ë•ë_¢ºŞjË"‚v›•ëÚ®&›•ëj¹âpjÇ^rV«yÜ"¶(Ën±é^µú+­æ¬²('i¹^½ªâi¹^°ŒAÉ½Ù¥‘•ÈI½…‘µ…À()Ù½¥•µÕá€Í¡½Õ±ÍÕÁÁ½ÉĞµ…¹äÍÁ•• ÁÉ½Ù¥‘•ÉÌİ¥Ñ¡½ÕĞÑÕÉ¹¥¹œ¥¹Ñ¼„Á¥±”½˜ÁÉ½Ù¥‘•ÈµÍÁ•¥™¥Œ±Õ”¸Q¡”‰É½…‘•È™•…ÑÕÉ”Á±…¸±¥Ù•Ì¥¸m€¸¸½I=5@¹µ‘t ¸¸½I=5@¹µ¤ìÑ¡¥Ì‘½Õµ•¹Ğ™½ÕÍ•Ì½¸ÁÉ½Ù¥‘•È…‘…ÁÑ•ÈÍ¡…Á”…¹ÁÉ½Ù¥‘•ÈÉ½±±½ÕĞ½É‘•È¸()Q¡”É½…‘µ…À¥Ì…‘…ÁÑ•Èµ™…µ¥±ä™¥ÉÍĞè((Ä¸•¹•É¥Œ=Á•¹$µ½µÁ…Ñ¥‰±”…Õ‘¥¼…‘…ÁÑ•ÉÌ¸(È¸9…Ñ¥Ù”…‘…ÁÑ•ÉÌ™½È¡¥ µÙ…±Õ”ÁÉ½Ù¥‘•ÉÌÑ¡…Ğ¹••ÑÉ…¹Í±…Ñ¥½¸¸(Ì¸AÉ½Ù¥‘•È…Á…‰¥±¥Ñä‘¥Í½Ù•Éä…¹É¥¡•ÈÁ½±¥ä¸(Ğ¸=ÁÑ¥½¹…°É•…±Ñ¥µ”É½ÕÑ¥¹œ°½¹±ä…™Ñ•È!QQ@É½ÕÑ¥¹œ¥ÌÁÉ½Ù•¸¸((ŒŒ%µÁ±•µ•¹Ñ•AÉ½Ù¥‘•ÈM¡…Á”()Ù•ÉäÁÉ½Ù¥‘•È¥ÌÉ•ÁÉ•Í•¹Ñ•…Ì„ÑåÁ•½¹™¥œ•¹ÑÉä¸Q¡”ÕÉÉ•¹Ñ±ä¥µÁ±•µ•¹Ñ•™¥•±‘Ì…É”è()å…µ°)ÁÉ½Ù¥‘•ÉÌè(€ÍÁ•…¡•Ìè(€€€ÑåÁ”è½Á•¹…¥}…Õ‘¥¼(€€€‰…Í•}ÕÉ°è¡ÑÑÀè¼¼ÄÈÜ¸À¸À¸ÄèàÀÀÀ½ØÄ(€€€…Á¥}­•å}•¹ØèMA!M}A%}-d(€€€…Á…‰¥±¥Ñ¥•ÌèmÍÑĞ°ÑÑÍt)€()AÉ½Ù¥‘•È™¥•±‘ÌÕÉÉ•¹Ñ±ä…•ÁÑ•‰äÙ½¥•µÕá€è((´ÑåÁ•€è…‘…ÁÑ•È™…µ¥±ä¸(´‰…Í•}ÕÉ±€è™½È=Á•¹$µ½µÁ…Ñ¥‰±”‰…­•¹‘Ì¸(´…Á¥}­•å}•¹Ù€èÁÉ•™•ÉÉ•Í•É•ĞÉ•™•É•¹”¸(´…Á¥}­•å€è‘¥É•Ğ­•ä½¹±ä™½È±½…°Á±…•¡½±‘•ÉÌ½ÈÑ•ÍÑ¥¹œ¸(´µ½‘•±€°±…¹Õ…•€°…¹½ÕÑÁÕÑ}™½Éµ…Ñ€è¹…Ñ¥Ù”…‘…ÁÑ•È‘•™…Õ±ÑÌİ¡•É”ÍÕÁÁ½ÉÑ•¸(´Íµ…ÉÑ}™½Éµ…Ñ€…¹ÁÕ¹ÑÕ…Ñ•€è••ÁÉ…´MQP½ÁÑ¥½¹Ì¸(´…Á…‰¥±¥Ñ¥•Í€…¹Ñ…Í€è‘•ÍÉ¥ÁÑ¥Ù”µ•Ñ…‘…Ñ„¸()Q¡”Í•ÉÙ•ÈÕÉÉ•¹Ñ±ä•¹™½É•ÌÍ•ÉÙ•È¹É•ÅÕ•ÍÑ}Ñ¥µ•½ÕÑ}Í•½¹‘Í€ìÁ•ÈµÁÉ½Ù¥‘•ÈÑ¥µ•½ÕÑ}Í•½¹‘Í€¥ÌÉ•Í•ÉÙ•™½È„™ÕÑÕÉ”É•±•…Í”¸5½‘•°…¹Ù½¥”…±¥…Í•Ì±¥Ù”Õ¹‘•ÈÑ¡”Ñ½Àµ±•Ù•°…±¥…Í•Í€Í•Ñ¥½¸°¹½Ğ¥¹‘¥Ù¥‘Õ…°ÁÉ½Ù¥‘•È•¹ÑÉ¥•Ì¸()M•É•ÑÌÍ¡½Õ±‰”É•™•É•¹•Ñ¡É½Õ •¹Ù¥É½¹µ•¹ĞÙ…É¥…‰±•Ì‰ä‘•™…Õ±Ğ¸%¹±¥¹”Í•É•ÑÌÍ¡½Õ±‰”‘¥Í½ÕÉ…•¥¸‘½Ì¸((ŒŒA±…¹¹•‘…ÁÑ•È½¹ÑÉ…Ğ()Q¡”™½±±½İ¥¹œ…Á…‰¥±¥Ñäµ½É¥•¹Ñ•½¹ÑÉ…Ğ¥ÌÑ¡”‘•Í¥¸Ñ…É•Ğ°¹½ĞÑ¡”ÕÉÉ•¹ĞIÕÍĞA$¸()Ñ•áĞ)AÉ½Ù¥‘•É‘…ÁÑ•È(€¹…µ” ¤€´øAÉ½Ù¥‘•É9…µ”(€…Á…‰¥±¥Ñ¥•Ì ¤€´øAÉ½Ù¥‘•É…Á…‰¥±¥Ñ¥•Ì(€¡•…±Ñ  ¤€´øAÉ½Ù¥‘•É!•…±Ñ (€ÑÉ…¹ÍÉ¥‰”¡É•ÅÕ•ÍĞ¤€´øQÉ…¹ÍÉ¥ÁÑ¥½¹I•ÍÕ±Ğ°¥˜MQPµ…Á…‰±”(€Íå¹Ñ¡•Í¥é”¡É•ÅÕ•ÍĞ¤€´øMÁ••¡MÑÉ•…´°¥˜QQLµ…Á…‰±”)€()Q¡”É½ÕÑ•È½İ¹Ìè((´ÁÉ½™¥±”Í•±•Ñ¥½¸(´É½ÕÑ”µ¡…¥¸½É‘•É¥¹œ(´…±¥…ÌÉ•Í½±ÕÑ¥½¸(´™…±±‰…¬‘•¥Í¥½¹Ì(´µ…à…ÑÑ•µÁÑÌ(´±½¥¹œ…¹Ñ¥µ¥¹œ()‘…ÁÑ•ÉÌ½İ¸è((´ÁÉ½Ù¥‘•ÈµÍÁ•¥™¥ŒÉ•ÅÕ•ÍĞÑÉ…¹Í±…Ñ¥½¸(´ÁÉ½Ù¥‘•ÈµÍÁ•¥™¥Œ…ÕÑ ¡•…‘•ÉÌ(´ÁÉ½Ù¥‘•ÈµÍÁ•¥™¥ŒÉ•ÍÁ½¹Í”¹½Éµ…±¥é…Ñ¥½¸(´ÁÉ½Ù¥‘•ÈµÍÁ•¥™¥Œ¡•…±Ñ ¡•­Ì(´ÁÉ½Ù¥‘•ÈµÍÁ•¥™¥ŒÍÕÁÁ½ÉÑ•™½Éµ…ÑÌ((ŒŒ…Á…‰¥±¥Ñä5½‘•°()…Á…‰¥±¥Ñ¥•ÌÍ¡½Õ±‘É¥Ù”É½ÕÑ¥¹œ°¹½ĞÁÉ½Ù¥‘•È¹…µ•Ì¸()½É”…Á…‰¥±¥Ñ¥•Ìè((´ÍÑÑ€è…¸Í•ÉÙ”€½ØÄ½…Õ‘¥¼½ÑÉ…¹ÍÉ¥ÁÑ¥½¹Í€¸(´ÑÑÍ€è…¸Í•ÉÙ”€½ØÄ½…Õ‘¥¼½ÍÁ••¡€¸()=ÁÑ¥½¹…°…Á…‰¥±¥Ñä™±…Ìè((´ÍÑÉ•…µ¥¹}ÑÑÍ€è…¸ÍÑÉ•…´QQLÉ•ÍÁ½¹Í•Ì¸(´ÍÑÉ•…µ¥¹}ÍÑÑ€è…¸ÍÑÉ•…´ÑÉ…¹ÍÉ¥ÁÑ¥½¸É•ÍÁ½¹Í•Ì¸(´ÑÉ…¹Í±…Ñ¥½¹Í€è…¸Í•ÉÙ”€½ØÄ½…Õ‘¥¼½ÑÉ…¹Í±…Ñ¥½¹Í€¸(´Ù½¥•Í€è…¸±¥ÍĞÙ½¥•Ì¸(´µ½‘•±Í€è…¸±¥ÍĞµ½‘•±Ì¸(´É•…±Ñ¥µ•€èÍÕÁÁ½ÉÑÌÉ•…±Ñ¥µ”Í•ÍÍ¥½¹Ì¸(´±½…±€èÉÕ¹Ì±½…±±ä½È½¸ÕÍ•È¥¹™É…ÍÑÉÕÑÕÉ”¸(´±½Õ‘€èÍ•¹‘ÌÉ•ÅÕ•ÍÑÌÑ¼„¡½ÍÑ•Ñ¡¥ÉµÁ…ÉÑäA$¸()Q¡”5Y@Í¡½Õ±½¹±äÉ•ÅÕ¥É”ÍÑÑ€…¹ÑÑÍ€¸Ù•ÉåÑ¡¥¹œ•±Í”…¸‰”…‘Ù¥Í½Éäµ•Ñ…‘…Ñ„Õ¹Ñ¥°¥µÁ±•µ•¹Ñ•¸((ŒŒI½…‘µ…ÀQ¥•ÉÌ((ŒŒŒQ¥•È€Àè=Á•¹$µ½µÁ…Ñ¥‰±”½Õ¹‘…Ñ¥½¸()½…°èµ…­”Ù½¥•µÕá€ÕÍ•™Õ°İ¥Ñ Ñ¡”‰É½…‘•ÍĞÍ•Ğ½˜•á¥ÍÑ¥¹œÑ½½±Ìİ¥Ñ µ¥¹¥µ…°½‘”¸()‘…ÁÑ•ÉÌè((´½Á•¹…¥}ÍÑÑ€è‰…­•¹¥µÁ±•µ•¹ÑÌ€½ØÄ½…Õ‘¥¼½ÑÉ…¹ÍÉ¥ÁÑ¥½¹Í€¸(´½Á•¹…¥}ÑÑÍ€è‰…­•¹¥µÁ±•µ•¹ÑÌ€½ØÄ½…Õ‘¥¼½ÍÁ••¡€¸(´½Á•¹…¥}…Õ‘¥½€è‰…­•¹¥µÁ±•µ•¹ÑÌ‰½Ñ ¸()	…­•¹‘ÌÍÕÁÁ½ÉÑ•Ñ¡É½Õ Ñ¡¥ÌÑ¥•Èè((´MÁ•…¡•Ì(´Y½à	½à(´1¥Ñ•114(´=Á•¹$(´±½…°]¡¥ÍÁ•Èµ½µÁ…Ñ¥‰±”Í•ÉÙ•ÉÌ(´±½…°-½­½É¼µ½µÁ…Ñ¥‰±”Í•ÉÙ•ÉÌ(´…¹ä¡½ÍÑ•=Á•¹$µ½µÁ…Ñ¥‰±”…Õ‘¥¼•¹‘Á½¥¹Ğ()]¡ä™¥ÉÍĞè((´Q¡¥Ìµ…­•ÌMÁ•…¡•Ì…¹Y½à	½à¥µµ•‘¥…Ñ”‰…­•¹Ñ…É•ÑÌ¸(´Q¡¥Ì¥Ù•ÌÑ¡”ÁÉ½©•Ğ‰É½…½µÁ…Ñ¥‰¥±¥Ñäİ¥Ñ¡½ÕĞ¹…Ñ¥Ù”¥¹Ñ•É…Ñ¥½¹Ì¸(´Q¡¥ÌÙ…±¥‘…Ñ•ÌÉ½ÕÑ¥¹œ°…±¥…Í•Ì°™…±±‰…¬°…¹ÍÑÉ•…µ¥¹œ‰•™½É”ÁÉ½Ù¥‘•ÈÍÁÉ…İ°¸((ŒŒŒQ¥•È€Äè!¥ µY…±Õ”9…Ñ¥Ù”‘…ÁÑ•ÉÌ()½…°èÍÕÁÁ½ÉĞÁÉ½Ù¥‘•ÉÌÑ¡…ĞÕÍ•ÉÌÍÑÉ½¹±äİ…¹Ğ…¹Ñ¡…Ğ‘¼¹½Ğ¹…ÑÕÉ…±±ä•áÁ½Í”=Á•¹$µ½µÁ…Ñ¥‰±”…Õ‘¥¼•¹‘Á½¥¹ÑÌ¸()%¹¥Ñ¥…°¹…Ñ¥Ù”…‘…ÁÑ•ÉÌè((´‘••ÁÉ…µ}ÍÑÑ€(´•±•Ù•¹±…‰Í}ÑÑÍ€(´¥å}ÑÑÍ€()••ÁÉ…´MQPÍ¡…Á”è()å…µ°)ÁÉ½Ù¥‘•ÉÌè(€‘••ÁÉ…´è(€€€ÑåÁ”è‘••ÁÉ…µ}ÍÑĞ(€€€…Á¥}­•å}•¹ØèAI5}A%}-d(€€€µ½‘•°è¹½Ù„´Ì(€€€±…¹Õ…”è…ÕÑ¼(€€€Íµ…ÉÑ}™½Éµ…ĞèÑÉÕ”(€€€ÁÕ¹ÑÕ…Ñ”èÑÉÕ”(€€€Ñ¥µ•½ÕÑ}Í•½¹‘Ìè€ÈÀ)€()±•Ù•¹1…‰ÌQQLÍ¡…Á”è()å…µ°)ÁÉ½Ù¥‘•ÉÌè(€•±•Ù•¹±…‰Ìè(€€€ÑåÁ”è•±•Ù•¹±…‰Í}ÑÑÌ(€€€…Á¥}­•å}•¹Øè1Y91	M}A%}-d(€€€µ½‘•°è•±•Ù•¹}ÑÕÉ‰½}ØÉ|Ô(€€€½ÕÑÁÕÑ}™½Éµ…ĞèµÀÍ|ĞĞÄÀÁ|ÄÈà(€€€Ñ¥µ•½ÕÑ}Í•½¹‘Ìè€ÌÀ)€()]¡äÑ¡•Í”™¥ÉÍĞè((´••ÁÉ…´¥Ì„ÍÑÉ½¹œMQP‘•™…Õ±Ğ™½È±…Ñ•¹ä…¹ÅÕ…±¥Ñä¸(´±•Ù•¹1…‰Ì¥Ì„ÍÑÉ½¹œQQL‘•™…Õ±Ğ™½ÈÙ½¥”ÅÕ…±¥Ñä¸(´Q¡•ä…É”½µµ½¸¡½¥•Ì¥¸Ù½¥”ÍÑ…­Ì¸(´á¥ÍÑ¥¹œ±½…°AåÑ¡½¸ÁÉ½áä•áÁ•É¥µ•¹ÑÌ…±É•…‘ä±…É¥™äÑ¡”ÑÉ…¹Í±…Ñ¥½¸Í¡…Á”¸()¥ä¹…¤QQL¥Ì½¹™¥ÕÉ•…Ì„¹…Ñ¥Ù”=Á•¹$µ•‘”…‘…ÁÑ•Èè()å…µ°)ÁÉ½Ù¥‘•ÉÌè(€¥äè(€€€ÑåÁ”è¥å}ÑÑÌ(€€€…Á¥}­•å}•¹Øè%e}A%}-d(€€€µ½‘”èÍÑÉ•…µ¥¹œ(€€€½ÕÑÁÕÑ}™½Éµ…ĞèÁµ|ÈĞÀÀÀ(€€€µ½‘•°è¥åÍÁ•• €Œ½ÁÑ¥½¹…°½µÁ…Ñ¥‰¥±¥Ñä™¥•±()ÁÉ½™¥±•Ìè(€¡å‰É¥è(€€€ÑÑÌèm¥ä°±½…±}­½­½É½t()…±¥…Í•Ìè(€Ù½¥•Ìè(€€€…ÍÍ¥ÍÑ…¹Ğè(€€€€€¥äè€‰e=UI}%e}Y=%}UU%ˆ)€()¥äÉ•ÅÕ•ÍÑÌÕÍ”á¤µ…Á¤µ­•å€…ÕÑ¡•¹Ñ¥…Ñ¥½¸…¹Í•¹Ñ•áÑ€°Ù½¥•}¥‘€°µ½‘”èÍÑÉ•…µ¥¹€°…¹½ÕÑÁÕÑ}™½Éµ…ĞèÁµ|ÈĞÀÀÁ€Ñ¼€½ØÄ½Ñ•áĞµÑ¼µÍÁ••¡€¸¥äÉ•ÑÕÉ¹ÌÉ…ÜA4ÄØ±¥ÑÑ±”µ•¹‘¥…¸°µ½¹¼°€ÈĞ­!è…Õ‘¥¼ÁÉ½É•ÍÍ¥Ù•±äìY½¥•5Õà™½Éİ…É‘ÌÑ¡”ÕÁÍÑÉ•…´‰½‘äÍÑÉ•…´Ñ¼€½ØÄ½…Õ‘¥¼½ÍÁ••¡€İ¥Ñ¡½ÕĞ‰Õ™™•É¥¹œÑ¡”½µÁ±•Ñ”…Õ‘¥¼¸=Á•¹$É•ÍÁ½¹Í•}™½Éµ…ĞèÁµ€Í•±•ÑÌÑ¡¥Ì™½Éµ…Ğ¸=Ñ¡•È¥äµ½‘•Ì…¹½ÕÑÁÕĞ™½Éµ…ÑÌ…É”É•©•Ñ•‰•…ÕÍ”Ñ¡•ä‘¼¹½ĞÁÉ½Ù¥‘”Ñ¡”ÍÑÉ•…µ¥¹œÉ•ÍÁ½¹Í”Ñ¡¥Ì…‘…ÁÑ•ÈÁÉ½µ¥Í•Ì¸Q¡”µ½‘•°½µÁ…Ñ¥‰¥±¥Ñä™¥•±¥ÌÍ•¹Ğ½¹±äİ¡•¸ÍÕÁÁ±¥•Ñ¡É½Õ Ñ¡”É½ÕÑ”½ÈÁÉ½Ù¥‘•È½¹™¥œ¸()IÕ±”è()9…Ñ¥Ù”…‘…ÁÑ•ÉÌÍ¡½Õ±‰”…‘‘•½¹±äİ¡•¸Ñ¡•äµ…Ñ•É¥…±±ä¥µÁÉ½Ù”½µÁ…Ñ¥‰¥±¥Ñä°±…Ñ•¹ä°ÍÑÉ•…µ¥¹œ°…ÕÑ °½ÈU`½Ù•ÈÉ½ÕÑ¥¹œÑ¡É½Õ „•¹•É¥Œ=Á•¹$µ½µÁ…Ñ¥‰±”‰…­•¹½È1¥Ñ•114¸((ŒŒŒQ¥•È€Èè½µµ½¸±½ÕMÁ•• AÉ½Ù¥‘•ÉÌ()½…°è…‘¹…Ñ¥Ù”…‘…ÁÑ•ÉÌİ¡•É”Ñ¡•É”¥Ì±•…È‘•µ…¹…¹¹¼‰•ÑÑ•È•¹•É¥ŒÁ…Ñ ¸()MQP…¹‘¥‘…Ñ•Ìè((´É½Ä]¡¥ÍÁ•È(´ÍÍ•µ‰±å$(´MÁ••¡µ…Ñ¥Ì(´M½¹¥½à(´éÕÉ”MÁ•• (´½½±”MÁ•• µÑ¼µQ•áĞ(´]LQÉ…¹ÍÉ¥‰”(´±½Õ‘™±…É”]½É­•ÉÌ$]¡¥ÍÁ•È(´9Y%%I¥Ù„()QQL…¹‘¥‘…Ñ•Ìè((´…ÉÑ•Í¥„(´••ÁÉ…´ÕÉ„(´éÕÉ”MÁ•• (´½½±”±½ÕQQL(´]LA½±±ä(´A±…å!P(´I•Í•µ‰±”$(´¥Í Õ‘¥¼(´I¥µ”(´159P(´9Y%%I¥Ù„()M•±•Ñ¥½¸É¥Ñ•É¥„è((´ÕÍ•È‘•µ…¹(´ÁÉ½Ù¥‘•ÈÅÕ…±¥Ñä½±…Ñ•¹ä(´ÁÉ¥¥¹œ½™É•”Ñ¥•ÈÕÍ•™Õ±¹•ÍÌ(´ÍÑÉ•…µ¥¹œÍÕÁÁ½ÉĞ(´ÍÑ…‰±”A$(´İ¡•Ñ¡•È1¥Ñ•114…±É•…‘äÍ½±Ù•Ì¥Ğİ•±°•¹½Õ (´İ¡•Ñ¡•È„•¹•É¥Œ=Á•¹$µ½µÁ…Ñ¥‰±”…‘…ÁÑ•È…¸…±É•…‘ä½Ù•È¥Ğ((ŒŒŒQ¥•È€Ìè¥Í½Ù•Éä¹‘Ù…¹•A½±¥ä()½…°èµ…­”ÁÉ½Ù¥‘•ÉÌ•…Í¥•ÈÑ¼¥¹ÍÁ•Ğ…¹É½ÕÑ”¥¹Ñ•±±¥•¹Ñ±ä¸()•…ÑÕÉ•Ìè((´P€½ØÄ½Ù½¥•Í€(´P€½ØÄ½ÁÉ½Ù¥‘•ÉÍ€(´P€½ØÄ½ÁÉ½™¥±•Í€(´ÁÉ½Ù¥‘•Èµ½‘•°‘¥Í½Ù•Éä(´ÁÉ½Ù¥‘•ÈÙ½¥”‘¥Í½Ù•Éä(´ÁÉ½Ù¥‘•È¡•…±Ñ …¡”(´Á•ÈµÁÉ½Ù¥‘•È¥ÉÕ¥Ğ‰É•…­•È(´Á•ÈµÁÉ½Ù¥‘•È½ÍĞµ•Ñ…‘…Ñ„(´Á½±¥äÑ…Ì±¥­”±½…±€°±½Õ‘€°¡•…Á€°ÁÉ•µ¥Õµ€°±½İ}±…Ñ•¹å€()á…µÁ±”è()å…µ°)ÁÉ½Ù¥‘•ÉÌè(€…ÉÑ•Í¥„è(€€€ÑåÁ”è…ÉÑ•Í¥…}ÑÑÌ(€€€…Á¥}­•å}•¹ØèIQM%}A%}-d(€€€Ñ…Ìèm±½Õ°±½İ}±…Ñ•¹åt((€ÍÁ•…¡•Ìè(€€€ÑåÁ”è½Á•¹…¥}…Õ‘¥¼(€€€‰…Í•}ÕÉ°è¡ÑÑÀè¼¼ÄÈÜ¸À¸À¸ÄèàÀÀÀ½ØÄ(€€€Ñ…Ìèm±½…°°ÁÉ¥Ù…Ñ•t)€((ŒŒŒQ¥•È€ĞèI•…±Ñ¥µ”()½…°è•Ù…±Õ…Ñ”=Á•¹$I•…±Ñ¥µ”µ½µÁ…Ñ¥‰±”É½ÕÑ¥¹œİ¥Ñ¡½ÕĞ½µÁÉ½µ¥Í¥¹œÑ¡”!QQ@ÁÉ½áä¸()I•…±Ñ¥µ”¥Ì¥¹Ñ•¹Ñ¥½¹…±±ä±…Ñ•È‰•…ÕÍ”¥Ğ¡…¹•ÌÑ¡”ÁÉ½‘ÕĞÍ¡…Á”è((´]•‰M½­•ĞÍ•ÍÍ¥½¹Ì(´‰¥‘¥É•Ñ¥½¹…°…Õ‘¥¼ÍÑÉ•…µ¥¹œ(´Á…ÉÑ¥…°ÑÉ…¹ÍÉ¥ÁÑÌ(´ÑÕÉ¸‘•Ñ•Ñ¥½¸(´‰…É”µ¥¸½¥¹Ñ•ÉÉÕÁÑ¥½¹Ì(´ÁÉ½Ù¥‘•ÈµÍÁ•¥™¥ŒÍ•ÍÍ¥½¸ÍÑ…Ñ”()%¹¥Ñ¥…°É•…±Ñ¥µ”…¹‘¥‘…Ñ•Ìè((´=Á•¹$I•…±Ñ¥µ”(´MÁ•…¡•ÌI•…±Ñ¥µ”(´1¥Ñ•114É•…±Ñ¥µ”µ½µÁ…Ñ¥‰±”Á…Ñ¡Ì°¥˜µ…ÑÕÉ”()I•…±Ñ¥µ”Í¡½Õ±±¥­•±ä‰”„Í•Á…É…Ñ”…‘…ÁÑ•ÈÁ…Ñ ½ÈÁ…­…”É…Ñ¡•ÈÑ¡…¸‰½±Ñ•½¹Ñ¼Ñ¡”!QQ@É½ÕÑ”µ¡…¥¸5Y@¸((ŒŒAÉ½Ù¥‘•ÈQåÁ•Ì((ŒŒŒ½Á•¹…¥}…Õ‘¥½€()½µ‰¥¹•=Á•¹$µ½µÁ…Ñ¥‰±”MQP½QQL‰…­•¹¸()áÁ•Ñ••¹‘Á½¥¹ÑÌè((´A=MPí‰…Í•}ÕÉ±ô½…Õ‘¥¼½ÑÉ…¹ÍÉ¥ÁÑ¥½¹Í€(´A=MPí‰…Í•}ÕÉ±ô½…Õ‘¥¼½ÍÁ••¡€()=ÁÑ¥½¹…°•¹‘Á½¥¹ÑÌè((´Pí‰…Í•}ÕÉ±ô½µ½‘•±Í€(´Pí‰…Í•}ÕÉ±ô½Ù½¥•Í€(´ÁÉ½Ù¥‘•ÈµÍÁ•¥™¥Œ¡•…±Ñ •¹‘Á½¥¹Ğ()UÍ”™½Èè((´MÁ•…¡•Ì(´Y½à	½à(´1¥Ñ•114(´=Á•¹$µ½µÁ…Ñ¥‰±”±½…°ÍÑ…­Ì((ŒŒŒ½Á•¹…¥}ÍÑÑ€()=Á•¹$µ½µÁ…Ñ¥‰±”MQPµ½¹±ä‰…­•¹¸()áÁ•Ñ••¹‘Á½¥¹Ğè((´A=MPí‰…Í•}ÕÉ±ô½…Õ‘¥¼½ÑÉ…¹ÍÉ¥ÁÑ¥½¹Í€()UÍ”™½Èè((´]¡¥ÍÁ•Èµ½µÁ…Ñ¥‰±”Í•ÉÙ•ÉÌ(´¡½ÍÑ•=Á•¹$µ½µÁ…Ñ¥‰±”ÑÉ…¹ÍÉ¥ÁÑ¥½¸•¹‘Á½¥¹ÑÌ((ŒŒŒ½Á•¹…¥}ÑÑÍ€()=Á•¹$µ½µÁ…Ñ¥‰±”QQLµ½¹±ä‰…­•¹¸()áÁ•Ñ••¹‘Á½¥¹Ğè((´A=MPí‰…Í•}ÕÉ±ô½…Õ‘¥¼½ÍÁ••¡€()UÍ”™½Èè((´-½­½É¼Í•ÉÙ•ÉÌ(´¡…ÑÑ•É‰½àÍ•ÉÙ•ÉÌ(´=Á•¹$µ½µÁ…Ñ¥‰±”QQLÍ•ÉÙ•ÉÌ((ŒŒŒ‘••ÁÉ…µ}ÍÑÑ€()9…Ñ¥Ù”MQP…‘…ÁÑ•ÈÑ¡…ĞÑÉ…¹Í±…Ñ•Ì=Á•¹$ÑÉ…¹ÍÉ¥ÁÑ¥½¸É•ÅÕ•ÍÑÌÑ¼••ÁÉ…´€½ØÄ½±¥ÍÑ•¹€¸()=Á•¹$É•ÅÕ•ÍĞ™¥•±‘ÌÑ¼µ…Àè((´™¥±•€(´µ½‘•±€(´±…¹Õ…•€(´ÁÉ½µÁÑ€°±¥­•±ä…Ì­•åİ½É‘Ì½½¹Ñ•áĞİ¡•É”…ÁÁÉ½ÁÉ¥…Ñ”(´É•ÍÁ½¹Í•}™½Éµ…Ñ€()••ÁÉ…´½ÁÑ¥½¹ÌÑ¼•áÁ½Í”è((´µ½‘•±€(´±…¹Õ…•€(´Íµ…ÉÑ}™½Éµ…Ñ€(´ÁÕ¹ÑÕ…Ñ•€(´‘¥…É¥é•€°±…Ñ•È(´­•åİ½É‘Í€°±…Ñ•È((ŒŒŒ•±•Ù•¹±…‰Í}ÑÑÍ€()9…Ñ¥Ù”QQL…‘…ÁÑ•ÈÑ¡…ĞÑÉ…¹Í±…Ñ•Ì=Á•¹$ÍÁ•• É•ÅÕ•ÍÑÌÑ¼±•Ù•¹1…‰ÌQQL¸()=Á•¹$É•ÅÕ•ÍĞ™¥•±‘ÌÑ¼µ…Àè((´¥¹ÁÕÑ€(´µ½‘•±€(´Ù½¥•€(´É•ÍÁ½¹Í•}™½Éµ…Ñ€(´ÍÁ••‘€()±•Ù•¹1…‰Ì½ÁÑ¥½¹ÌÑ¼•áÁ½Í”è((´µ½‘•±€(´½ÕÑÁÕÑ}™½Éµ…Ñ€(´Ù½¥•}Í•ÑÑ¥¹Í€(´Ù½¥”…±¥…Í•Ì()5Y@Í¡½Õ±ÁÉ•™•ÈÁÉ½Ù¥‘•Èµ¹…Ñ¥Ù”5@Ì½ÕÑÁÕĞ¸A4½]XÑÉ…¹Í½‘¥¹œÍ¡½Õ±¹½Ğ‰”¥¸Ñ¡”½É”É•ÅÕ•ÍĞÁ…Ñ Õ¹±•ÍÌ±…Ñ•È©ÕÍÑ¥™¥•¸((ŒŒ±¥…ÌM¡…Á”()±¥…Í•ÌÍ¡½Õ±±•Ğ±¥•¹ÑÌÕÍ”Á½ÉÑ…‰±”¹…µ•Ì¸()å…µ°)…±¥…Í•Ìè(€µ½‘•±Ìè(€€€İ¡¥ÍÁ•È´Äè(€€€€€‘••ÁÉ…´è¹½Ù„´Ì(€€€€€ÍÁ•…¡•ÌèMåÍÑÉ…¸½™…ÍÑ•Èµ‘¥ÍÑ¥°µİ¡¥ÍÁ•ÈµÍµ…±°¹•¸(€€€€€Ù½á‰½àèİ¡¥ÍÁ•Èµ±…É”µØÌ((€€€ÑÑÌ´Äè(€€€€€•±•Ù•¹±…‰Ìè•±•Ù•¹}ÑÕÉ‰½}ØÉ|Ô(€€€€€ÍÁ•…¡•ÌèÍÁ•…¡•Ìµ…¤½-½­½É¼´àÉ4µØÄ¸Àµ=99`(€€€€€Ù½á‰½àè½ÍåÙ½¥”((€Ù½¥•Ìè(€€€…ÍÍ¥ÍÑ…¹Ğè(€€€€€•±•Ù•¹±…‰Ìè1Y91	M}Y=%}%}!I(€€€€€ÍÁ•…¡•Ìè…™}¡•…ÉĞ(€€€€€Ù½á‰½àè¹±¥Í •µ…±”)€()I•Í½±ÕÑ¥½¸½É‘•Èè((Ä¸UÍ”ÁÉ½Ù¥‘•ÈµÍÁ•¥™¥Œ…±¥…Ì¥˜ÁÉ•Í•¹Ğ¸(È¸UÍ”É•ÅÕ•ÍĞÙ…±Õ”‘¥É•Ñ±ä¥˜ÁÉ½Ù¥‘•È…•ÁÑÌ‘¥É•Ğ%Ì¸(Ì¸UÍ”ÁÉ½Ù¥‘•È‘•™…Õ±Ğ¥˜½¹™¥ÕÉ•¸(Ğ¸…¥°±•…É±ä¥˜¹¼ÕÍ…‰±”µ½‘•°½Ù½¥”•á¥ÍÑÌ¸((ŒŒ…±±‰…¬M¡…Á”()…±±‰…¬Í¡½Õ±‰”É½ÕÑ”µ¡…¥¸‰…Í•…¹‰½Õ¹‘•¸()å…µ°)ÁÉ½™¥±•Ìè(€¡å‰É¥è(€€€ÍÑĞèm‘••ÁÉ…´°ÍÁ•…¡•Ít(€€€ÑÑÌèm•±•Ù•¹±…‰Ì°ÍÁ•…¡•Ít()™…±±‰…¬è(€™…±±‰…­}½¹}ÍÑ…ÑÕÍ•ÌèlĞÀà°€ĞÈä°€ÔÀÀ°€ÔÀÈ°€ÔÀÌ°€ÔÀÑt(€µ…á}…ÑÑ•µÁÑÍ}Á•É}É•ÅÕ•ÍĞè€È(€É•ÑÉå}Ñ¥µ•½ÕÑÌè™…±Í”)€()AÉ½Ù¥‘•È™…¥±ÕÉ•ÌÍ¡½Õ±ÁÉ½‘Õ”±½Ì±¥­”è()Ñ•áĞ)µ½‘…±¥ÑäõÑÑÌÁÉ½™¥±”õ¡å‰É¥…ÑÑ•µÁÑ•õ•±•Ù•¹±…‰Ì±ÍÁ•…¡•Ìİ¥¹¹•ÈõÍÁ•…¡•Ì™…±±‰…­}É•…Í½¸õÁÉ½Ù¥‘•É|ÔÀÌ±…Ñ•¹å}µÌôàĞÀ)€((ŒŒ¥ÉÍĞ%µÁ±•µ•¹Ñ…Ñ¥½¸=É‘•È((Ä¸½¹™¥œÑåÁ•Ì™½ÈÁÉ½Ù¥‘•ÉÌ°ÁÉ½™¥±•Ì°…±¥…Í•Ì°Í•ÉÙ•È±¥µ¥ÑÌ°…¹™…±±‰…¬¸(È¸•¹•É¥Œ½Á•¹…¥}…Õ‘¥½€°½Á•¹…¥}ÍÑÑ€°…¹½Á•¹…¥}ÑÑÍ€…‘…ÁÑ•ÉÌ¸(Ì¸I½ÕÑ”µ¡…¥¸Í•±•Ñ¥½¸…¹‰½Õ¹‘•™…±±‰…¬¸(Ğ¸5½¬µÁÉ½Ù¥‘•ÈÑ•ÍÑÌ™½ÈMQP½QQLÍÕ•ÍÌ°Ñ¥µ•½ÕĞ°…¹™…±±‰…¬¸(Ô¸MÁ•…¡•Ì½ÈY½à	½à±½…°Ù…±¥‘…Ñ¥½¸Ñ¡É½Õ ½Á•¹…¥}…Õ‘¥½€¸(Ø¸Y½¥•5½‘”½=Á•¹$M,‘½Ì……¥¹ÍĞÑ¡”•¹•É¥Œ…‘…ÁÑ•ÈÁ…Ñ ¸(Ü¸••ÁÉ…´¹…Ñ¥Ù”…‘…ÁÑ•È¸(à¸±•Ù•¹1…‰Ì¹…Ñ¥Ù”…‘…ÁÑ•È¸(ä¸AÉ½Ù¥‘•È‘¥Í½Ù•Éä•¹‘Á½¥¹ÑÌ¸(ÄÀ¸‘‘¥Ñ¥½¹…°±½Õµ¹…Ñ¥Ù”…‘…ÁÑ•ÉÌ‰…Í•½¸‘•µ…¹¸((ŒŒ9½¸µ½…±Ì()AÉ½Ù¥‘•ÈÍÕÁÁ½ÉĞÍ¡½Õ±¹½ĞÁÕ±°Ù½¥•µÕá€¥¹Ñ¼Ñ¡•Í”…É•…Ì•…É±äè((´ÁÉ½Ù¥‘•ÈM,‘•Á•¹‘•¹äÍÁÉ…İ°(´±½…°µ½‘•°‘½İ¹±½…‘¥¹œ(´…Õ‘¥¼ÑÉ…¹Í½‘¥¹œ(´¡…Ğµ½µÁ±•Ñ¥½¹ÌÁÉ½áå¥¹œ(´É•…±Ñ¥µ”Í•ÍÍ¥½¸½É¡•ÍÑÉ…Ñ¥½¸(´‰¥±±¥¹œ‘…Í¡‰½…É(´¡½ÍÑ•M……L½¹ÑÉ½°Á±…¹”(

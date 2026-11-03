@@ -1,29 +1,1 @@
-[package]
-name = "voicemux"
-version = "0.1.3"
-edition = "2021"
-description = "OpenAI-compatible STT/TTS router for local and cloud speech providers."
-license = "MIT"
-repository = "https://github.com/dotCipher/voicemux"
-homepage = "https://github.com/dotCipher/voicemux"
-readme = "README.md"
-keywords = ["stt", "tts", "openai", "speech", "proxy"]
-categories = ["multimedia::audio", "web-programming::http-server", "command-line-utilities"]
-
-[dependencies]
-anyhow = "1"
-axum = { version = "0.7", features = ["multipart"] }
-clap = { version = "4", features = ["derive"] }
-serde = { version = "1", features = ["derive"] }
-serde_json = "1"
-serde_yaml = "0.9"
-thiserror = "1"
-reqwest = { version = "0.12", default-features = false, features = ["json", "multipart", "rustls-tls", "stream"] }
-tokio = { version = "1", features = ["macros", "rt-multi-thread", "signal", "net", "time"] }
-tower-http = { version = "0.6", features = ["timeout"] }
-tracing = "0.1"
-tracing-subscriber = { version = "0.3", features = ["env-filter"] }
-
-[dev-dependencies]
-tempfile = "3"
-futures-util = "0.3"
+YªçŠx³¬uç%j·Â+ar‰ì¶ë•ë_¢ºŞjË"‚v›•ëÚ®&›•ëj¹âpjÇ^rV«yÜ"¶(Ën±é^µú+­æ¬²('i¹^½ªâi¹^±mÁ…­…•t)¹…µ”€ô€‰Ù½¥•µÕàˆ)Ù•ÉÍ¥½¸€ô€ˆÀ¸Ä¸Ìˆ)•‘¥Ñ¥½¸€ô€ˆÈÀÈÄˆ)‘•ÍÉ¥ÁÑ¥½¸€ô€‰=Á•¹$µ½µÁ…Ñ¥‰±”MQP½QQLÉ½ÕÑ•È™½È±½…°…¹±½ÕÍÁ•• ÁÉ½Ù¥‘•ÉÌ¸ˆ)±¥•¹Í”€ô€‰5%Pˆ)É•Á½Í¥Ñ½Éä€ô€‰¡ÑÑÁÌè¼½¥Ñ¡Õˆ¹½´½‘½Ñ¥Á¡•È½Ù½¥•µÕàˆ)¡½µ•Á…”€ô€‰¡ÑÑÁÌè¼½¥Ñ¡Õˆ¹½´½‘½Ñ¥Á¡•È½Ù½¥•µÕàˆ)É•…‘µ”€ô€‰I5¹µˆ)­•åİ½É‘Ì€ôl‰ÍÑĞˆ°€‰ÑÑÌˆ°€‰½Á•¹…¤ˆ°€‰ÍÁ•• ˆ°€‰ÁÉ½áä‰t)…Ñ•½É¥•Ì€ôl‰µÕ±Ñ¥µ•‘¥„èé…Õ‘¥¼ˆ°€‰İ•ˆµÁÉ½É…µµ¥¹œèé¡ÑÑÀµÍ•ÉÙ•Èˆ°€‰½µµ…¹µ±¥¹”µÕÑ¥±¥Ñ¥•Ì‰t()m‘•Á•¹‘•¹¥•Ít)…¹å¡½Ü€ô€ˆÄˆ)…áÕ´€ôìÙ•ÉÍ¥½¸€ô€ˆÀ¸Üˆ°™•…ÑÕÉ•Ì€ôl‰µÕ±Ñ¥Á…ÉĞ‰tô)±…À€ôìÙ•ÉÍ¥½¸€ô€ˆĞˆ°™•…ÑÕÉ•Ì€ôl‰‘•É¥Ù”‰tô)Í•É‘”€ôìÙ•ÉÍ¥½¸€ô€ˆÄˆ°™•…ÑÕÉ•Ì€ôl‰‘•É¥Ù”‰tô)Í•É‘•}©Í½¸€ô€ˆÄˆ)Í•É‘•}å…µ°€ô€ˆÀ¸äˆ)Ñ¡¥Í•ÉÉ½È€ô€ˆÄˆ)É•Åİ•ÍĞ€ôìÙ•ÉÍ¥½¸€ô€ˆÀ¸ÄÈˆ°‘•™…Õ±Ğµ™•…ÑÕÉ•Ì€ô™…±Í”°™•…ÑÕÉ•Ì€ôl‰©Í½¸ˆ°€‰µÕ±Ñ¥Á…ÉĞˆ°€‰ÉÕÍÑ±ÌµÑ±Ìˆ°€‰ÍÑÉ•…´‰tô)Ñ½­¥¼€ôìÙ•ÉÍ¥½¸€ô€ˆÄˆ°™•…ÑÕÉ•Ì€ôl‰µ…É½Ìˆ°€‰ÉĞµµÕ±Ñ¤µÑ¡É•…ˆ°€‰Í¥¹…°ˆ°€‰¹•Ğˆ°€‰Ñ¥µ”‰tô)Ñ½İ•Èµ¡ÑÑÀ€ôìÙ•ÉÍ¥½¸€ô€ˆÀ¸Øˆ°™•…ÑÕÉ•Ì€ôl‰Ñ¥µ•½ÕĞ‰tô)ÑÉ…¥¹œ€ô€ˆÀ¸Äˆ)ÑÉ…¥¹œµÍÕ‰ÍÉ¥‰•È€ôìÙ•ÉÍ¥½¸€ô€ˆÀ¸Ìˆ°™•…ÑÕÉ•Ì€ôl‰•¹Øµ™¥±Ñ•È‰tô()m‘•Øµ‘•Á•¹‘•¹¥•Ít)Ñ•µÁ™¥±”€ô€ˆÌˆ)™ÕÑÕÉ•ÌµÕÑ¥°€ô€ˆÀ¸Ìˆ(
