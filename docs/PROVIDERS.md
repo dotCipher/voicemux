@@ -166,8 +166,8 @@ providers:
   giggy:
     type: giggy_tts
     api_key_env: GIGGY_API_KEY
-    mode: fast # fast or batch
-    output_format: mp3_24000_160
+    mode: streaming
+    output_format: pcm_24000
     model: giggyspeech # optional compatibility field
 
 profiles:
@@ -180,7 +180,7 @@ aliases:
       giggy: "YOUR_GIGGY_VOICE_UUID"
 ```
 
-Giggy requests use `xi-api-key` authentication and send `text`, `voice_id`, `mode`, and `output_format` to `/v1/text-to-speech`. The supported output is `mp3_24000_160`; OpenAI `response_format: mp3` selects it. The model compatibility field is sent only when supplied through the route or provider config. Set `mode` to `fast` or `batch` (defaults to `fast`).
+Giggy requests use `xi-api-key` authentication and send `text`, `voice_id`, `mode: streaming`, and `output_format: pcm_24000` to `/v1/text-to-speech`. Giggy returns raw PCM16 little-endian, mono, 24 kHz audio progressively; VoiceMux forwards the upstream body stream to `/v1/audio/speech` without buffering the complete audio. OpenAI `response_format: pcm` selects this format. Other Giggy modes and output formats are rejected because they do not provide the streaming response this adapter promises. The model compatibility field is sent only when supplied through the route or provider config.
 
 Rule:
 
@@ -448,3 +448,4 @@ Provider support should not pull `voicemux` into these areas early:
 - realtime session orchestration
 - billing dashboard
 - hosted SaaS control plane
+

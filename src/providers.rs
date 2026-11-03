@@ -361,8 +361,8 @@ providers:
     type: giggy_tts
     api_key_env: GIGGY_API_KEY
     model: giggyspeech
-    mode: batch
-    output_format: mp3_24000_160
+    mode: streaming
+    output_format: pcm_24000
 aliases:
   voices:
     assistant:
@@ -379,9 +379,9 @@ aliases:
         let ProviderAdapter::GiggyTts(native) = giggy else {
             panic!("expected Giggy native adapter");
         };
-        assert_eq!(native.mode(), Some("batch"));
+        assert_eq!(native.mode(), Some("streaming"));
         assert_eq!(native.model(), Some("giggyspeech"));
-        assert_eq!(native.output_format(), Some("mp3_24000_160"));
+        assert_eq!(native.output_format(), Some("pcm_24000"));
     }
 
     #[test]
@@ -485,3 +485,4 @@ providers:
         ));
     }
 }
+

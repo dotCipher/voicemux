@@ -1,3 +1,4 @@
+use axum::body::Body;
 use axum::extract::Multipart;
 use axum::http::{header, HeaderMap, HeaderValue, StatusCode};
 use axum::response::{IntoResponse, Response};
@@ -116,21 +117,21 @@ async fn proxy_giggy_speech(
         .json(&body)
         .send()
         .await?;
-    response_from_upstream(upstream_response, "audio/mpeg", plan).await
+    response_from_upstream_stream(upstream_response, "audio/pcm;rate=24000", plan).await
 }
 
 fn giggy_output_format<'a>(
     requested: Option<&'a str>,
     configured: Option<&'a str>,
 ) -> Result<&'a str, OpenAiProxyError> {
-    let requested = requested.unwrap_or("mp3");
-    if !matches!(requested, "mp3" | "mp3_24000_160") {
+    let requested = requested.unwrap_or("pcm");
+    if !matches!(requested, "pcm" | "pcm_24000") {
         return Err(OpenAiProxyError::UnsupportedOutputFormat(
             requested.to_string(),
         ));
     }
-    let configured = configured.unwrap_or("mp3_24000_160");
-    if configured != "mp3_24000_160" {
+    let configured = configured.unwrap_or("pcm_24000");
+    if configured != "pcm_24000" {
         return Err(OpenAiProxyError::UnsupportedOutputFormat(
             configured.to_string(),
         ));
@@ -139,8 +140,8 @@ fn giggy_output_format<'a>(
 }
 
 fn giggy_mode(configured: Option<&str>) -> Result<&str, OpenAiProxyError> {
-    let mode = configured.unwrap_or("fast");
-    if !matches!(mode, "fast" | "batch") {
+    let mode = configured.unwrap_or("streaming");
+    if mode != "streaming" {
         return Err(OpenAiProxyError::InvalidGiggyMode(mode.to_string()));
     }
     Ok(mode)
@@ -287,6 +288,41 @@ fn speech_input_text(input: Value) -> Result<String, OpenAiProxyError> {
         Value::String(text) => Ok(text),
         _ => Err(OpenAiProxyError::InvalidSpeechInput),
     }
+}
+
+async fn response_from_upstream_stream(
+    upstream_response: reqwest::Response,
+    fallback_content_type: &'static str,
+    plan: &RoutePlan,
+) -> Result<Response, OpenAiProxyError> {
+    let status = upstream_response.status();
+    if !status.is_success() {
+        return response_from_upstream(upstream_response, fallback_content_type, plan).await;
+    }
+
+    let content_type = upstream_response
+        .headers()
+        .get(header::CONTENT_TYPE.as_str())
+        .cloned();
+    let content_type_text = content_type
+        .as_ref()
+        .and_then(|value| value.to_str().ok())
+        .unwrap_or("missing");
+    if !content_type_text.starts_with("audio/pcm") {
+        return Err(OpenAiProxyError::UnexpectedUpstreamContentType(
+            content_type_text.to_string(),
+        ));
+    }
+    let mut headers = upstream_headers(content_type, fallback_content_type);
+    insert_route_headers(&mut headers, plan);
+    let body = Body::from_stream(upstream_response.bytes_stream());
+
+    Ok((
+        StatusCode::from_u16(status.as_u16()).unwrap_or(StatusCode::BAD_GATEWAY),
+        headers,
+        body,
+    )
+        .into_response())
 }
 
 async fn response_from_upstream(
@@ -679,6 +715,8 @@ pub enum OpenAiProxyError {
     Upstream(#[from] reqwest::Error),
     #[error("upstream response was not valid json: {0}")]
     UpstreamJson(#[from] serde_json::Error),
+    #[error("Giggy streaming TTS expected audio/pcm but upstream returned '{0}'")]
+    UnexpectedUpstreamContentType(String),
     #[error("multipart request failed: {0}")]
     Multipart(#[from] axum::extract::multipart::MultipartError),
     #[error("multipart field is missing a name")]
@@ -689,9 +727,9 @@ pub enum OpenAiProxyError {
     InvalidSpeechInput,
     #[error("speech request must include a resolved voice for provider '{0}'")]
     MissingVoice(String),
-    #[error("unsupported Giggy output format '{0}'; Giggy TTS supports mp3_24000_160")]
+    #[error("unsupported Giggy output format '{0}'; streaming Giggy TTS supports pcm_24000")]
     UnsupportedOutputFormat(String),
-    #[error("invalid Giggy mode '{0}'; expected 'fast' or 'batch'")]
+    #[error("invalid Giggy mode '{0}'; this provider requires 'streaming'")]
     InvalidGiggyMode(String),
     #[error("transcription request must include a file field")]
     MissingTranscriptionFile,
@@ -710,7 +748,9 @@ impl OpenAiProxyError {
             | Self::UnsupportedOutputFormat(_)
             | Self::InvalidGiggyMode(_)
             | Self::MissingTranscriptionFile => StatusCode::BAD_REQUEST,
-            Self::Upstream(_) | Self::UpstreamJson(_) => StatusCode::BAD_GATEWAY,
+            Self::Upstream(_) | Self::UpstreamJson(_) | Self::UnexpectedUpstreamContentType(_) => {
+                StatusCode::BAD_GATEWAY
+            }
         }
     }
 
@@ -718,7 +758,9 @@ impl OpenAiProxyError {
         match self {
             Self::Route(_) => "invalid_route_request",
             Self::Provider(_) => "provider_configuration_error",
-            Self::Upstream(_) | Self::UpstreamJson(_) => "upstream_error",
+            Self::Upstream(_) | Self::UpstreamJson(_) | Self::UnexpectedUpstreamContentType(_) => {
+                "upstream_error"
+            }
             Self::Multipart(_)
             | Self::MissingMultipartFieldName
             | Self::MultipartContentType(_) => "invalid_multipart_request",
@@ -750,6 +792,10 @@ pub fn error_response(error: OpenAiProxyError) -> (StatusCode, axum::Json<serde_
 mod tests {
     use super::*;
     use crate::config::VoicemuxConfig;
+    use futures_util::StreamExt;
+    use std::io::{Read, Write};
+    use std::net::TcpListener;
+    use std::time::Duration;
 
     fn app_state() -> AppState {
         AppState::new(
@@ -887,27 +933,24 @@ mod tests {
 
     #[test]
     fn giggy_defaults_and_validates_mode_and_output_format() {
-        assert_eq!(giggy_output_format(None, None).unwrap(), "mp3_24000_160");
+        assert_eq!(giggy_output_format(None, None).unwrap(), "pcm_24000");
+        assert_eq!(giggy_output_format(Some("pcm"), None).unwrap(), "pcm_24000");
         assert_eq!(
-            giggy_output_format(Some("mp3"), None).unwrap(),
-            "mp3_24000_160"
+            giggy_output_format(Some("pcm_24000"), None).unwrap(),
+            "pcm_24000"
         );
-        assert_eq!(
-            giggy_output_format(Some("mp3_24000_160"), None).unwrap(),
-            "mp3_24000_160"
-        );
-        assert_eq!(giggy_mode(None).unwrap(), "fast");
-        assert_eq!(giggy_mode(Some("batch")).unwrap(), "batch");
+        assert_eq!(giggy_mode(None).unwrap(), "streaming");
+        assert_eq!(giggy_mode(Some("streaming")).unwrap(), "streaming");
         assert!(matches!(
             giggy_output_format(Some("wav"), None),
             Err(OpenAiProxyError::UnsupportedOutputFormat(_))
         ));
         assert!(matches!(
-            giggy_output_format(None, Some("pcm_24000")),
+            giggy_output_format(None, Some("mp3_24000_160")),
             Err(OpenAiProxyError::UnsupportedOutputFormat(_))
         ));
         assert!(matches!(
-            giggy_mode(Some("realtime")),
+            giggy_mode(Some("fast")),
             Err(OpenAiProxyError::InvalidGiggyMode(_))
         ));
     }
@@ -917,24 +960,92 @@ mod tests {
         let body = giggy_request_body(
             "Hello world",
             "00000000-0000-4000-8000-000000000001",
-            "fast",
-            "mp3_24000_160",
+            "streaming",
+            "pcm_24000",
             None,
         );
         assert_eq!(body["text"], "Hello world");
         assert_eq!(body["voice_id"], "00000000-0000-4000-8000-000000000001");
-        assert_eq!(body["mode"], "fast");
-        assert_eq!(body["output_format"], "mp3_24000_160");
+        assert_eq!(body["mode"], "streaming");
+        assert_eq!(body["output_format"], "pcm_24000");
         assert!(body.get("model_id").is_none());
 
         let compat_body = giggy_request_body(
             "Hi",
             "voice-id",
-            "batch",
-            "mp3_24000_160",
+            "streaming",
+            "pcm_24000",
             Some("giggyspeech"),
         );
         assert_eq!(compat_body["model_id"], "giggyspeech");
+    }
+
+    #[tokio::test]
+    async fn forwards_giggy_audio_chunks_before_upstream_completes() {
+        let listener = TcpListener::bind("127.0.0.1:0").expect("mock server should bind");
+        let address = listener
+            .local_addr()
+            .expect("mock server should have an address");
+        let server = std::thread::spawn(move || {
+            let (mut socket, _) = listener.accept().expect("mock client should connect");
+            let mut request = [0; 1024];
+            socket
+                .read(&mut request)
+                .expect("request should be readable");
+            socket
+                .write_all(
+                    b"HTTP/1.1 200 OK\r\nTransfer-Encoding: chunked\r\nContent-Type: audio/pcm;rate=24000\r\nConnection: close\r\n\r\n4\r\nABCD\r\n",
+                )
+                .expect("first audio chunk should be sent");
+            socket.flush().expect("first chunk should be flushed");
+            std::thread::sleep(Duration::from_millis(300));
+            socket
+                .write_all(b"4\r\nEFGH\r\n0\r\n\r\n")
+                .expect("final audio chunk should be sent");
+        });
+
+        let upstream = reqwest::Client::new()
+            .get(format!("http://{address}/audio"))
+            .send()
+            .await
+            .expect("mock response should arrive");
+        let plan = RoutePlan {
+            profile: "live".to_string(),
+            modality: Modality::Tts,
+            route: vec!["giggy".to_string()],
+            selected_provider: "giggy".to_string(),
+            resolved_model: Some("giggyspeech".to_string()),
+            resolved_voice: Some("voice-id".to_string()),
+            response_format: Some("pcm".to_string()),
+        };
+        let response = response_from_upstream_stream(upstream, "audio/pcm;rate=24000", &plan)
+            .await
+            .expect("streaming response should be constructed");
+        assert_eq!(response.status(), StatusCode::OK);
+        assert_eq!(
+            response.headers()[header::CONTENT_TYPE],
+            "audio/pcm;rate=24000"
+        );
+
+        let mut audio = response.into_body().into_data_stream();
+        let first = audio
+            .next()
+            .await
+            .expect("first chunk should arrive")
+            .expect("first chunk should be valid");
+        assert_eq!(first.as_ref(), b"ABCD");
+        assert!(
+            tokio::time::timeout(Duration::from_millis(100), audio.next())
+                .await
+                .is_err()
+        );
+        let second = audio
+            .next()
+            .await
+            .expect("second chunk should arrive")
+            .expect("second chunk should be valid");
+        assert_eq!(second.as_ref(), b"EFGH");
+        server.join().expect("mock server should finish");
     }
 
     #[test]
@@ -968,3 +1079,4 @@ mod tests {
         );
     }
 }
+
