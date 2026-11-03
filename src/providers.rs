@@ -1,1 +1,487 @@
-YªçŠx³¬uç%j·Â+ar‰ì¶ë•ë_¢ºÞjË"‚v›•ëÚ®&›•ëj¹âžpjÇ^rV«yÜ"¶(žËn±é^µú+­æ¬²('i¹^½ªâi¹^±ÕÍ”ÍÑèé½±±•Ñ¥½¹Ìèé	QÉ••5…Àì()ÕÍ”Í•É‘”èéM•É¥…±¥é”ì()ÕÍ”É…Ñ”èé½¹™¥œèéí5½‘…±¥Ñä°AÉ½Ù¥‘•É½¹™¥œ°AÉ½Ù¥‘•ÉQåÁ”°Y½¥•µÕá½¹™¥ôì((m‘•É¥Ù”¡•‰Õœ°±½¹”°A…ÉÑ¥…±Ä°Ä°M•É¥…±¥é”¥t)ÁÕˆÍÑÉÕÐAÉ½Ù¥‘•É•ÍÉ¥ÁÑ½Èì(€€€ÁÕˆ¹…µ”èMÑÉ¥¹œ°(€€€ÁÕˆÁÉ½Ù¥‘•É}ÑåÁ”èAÉ½Ù¥‘•ÉQåÁ”°(€€€ÁÕˆÍÕÁÁ½ÉÑÍ}ÍÑÐè‰½½°°(€€€ÁÕˆÍÕÁÁ½ÉÑÍ}ÑÑÌè‰½½°°(€€€€mÍ•É‘”¡Í­¥Á}Í•É¥…±¥é¥¹}¥˜€ô€‰=ÁÑ¥½¸èé¥Í}¹½¹”ˆ¥t(€€€ÁÕˆ‰…Í•}ÕÉ°è=ÁÑ¥½¸ñMÑÉ¥¹œø°(€€€ÁÕˆÑ…ÌèY•ŒñMÑÉ¥¹œø°)ô((m‘•É¥Ù”¡•‰Õœ°±½¹”°A…ÉÑ¥…±Ä°Ä¥t)ÁÕˆ•¹Õ´AÉ½Ù¥‘•É‘…ÁÑ•Èì(€€€=Á•¹¤¡=Á•¹¥‘…ÁÑ•È¤°(€€€••ÁÉ…µMÑÐ¡9…Ñ¥Ù•‘…ÁÑ•È¤°(€€€±•Ù•¹±…‰ÍQÑÌ¡9…Ñ¥Ù•‘…ÁÑ•È¤°(€€€¥åQÑÌ¡9…Ñ¥Ù•‘…ÁÑ•È¤°)ô()¥µÁ°AÉ½Ù¥‘•É‘…ÁÑ•Èì(€€€ÁÕˆ™¸™É½µ}½¹™¥œ¡¹…µ”è€™ÍÑÈ°½¹™¥œè€™AÉ½Ù¥‘•É½¹™¥œ¤€´øI•ÍÕ±ÐñM•±˜°AÉ½Ù¥‘•ÉÉÉ½Èøì(€€€€€€€µ…Ñ ½¹™¥œ¹ÁÉ½Ù¥‘•É}ÑåÁ”ì(€€€€€€€€€€€AÉ½Ù¥‘•ÉQåÁ”èé=Á•¹…¥Õ‘¥¼ðAÉ½Ù¥‘•ÉQåÁ”èé=Á•¹…¥MÑÐðAÉ½Ù¥‘•ÉQåÁ”èé=Á•¹…¥QÑÌ€ôøì(€€€€€€€€€€€€€€€=¬¡M•±˜èé=Á•¹¤¡=Á•¹¥‘…ÁÑ•Èèé™É½µ}½¹™¥œ¡¹…µ”°½¹™¥œ¤ü¤¤(€€€€€€€€€€€ô(€€€€€€€€€€€AÉ½Ù¥‘•ÉQåÁ”èé••ÁÉ…µMÑÐ€ôø=¬¡M•±˜èé••ÁÉ…µMÑÐ¡9…Ñ¥Ù•‘…ÁÑ•Èèé¹•Ü (€€€€€€€€€€€€€€€¹…µ”°(€€€€€€€€€€€€€€€AÉ½Ù¥‘•ÉQåÁ”èé••ÁÉ…µMÑÐ°(€€€€€€€€€€€€€€€½¹™¥œ°(€€€€€€€€€€€€¤¤¤°(€€€€€€€€€€€AÉ½Ù¥‘•ÉQåÁ”èé±•Ù•¹±…‰ÍQÑÌ€ôø=¬¡M•±˜èé±•Ù•¹±…‰ÍQÑÌ¡9…Ñ¥Ù•‘…ÁÑ•Èèé¹•Ü (€€€€€€€€€€€€€€€¹…µ”°(€€€€€€€€€€€€€€€AÉ½Ù¥‘•ÉQåÁ”èé±•Ù•¹±…‰ÍQÑÌ°(€€€€€€€€€€€€€€€½¹™¥œ°(€€€€€€€€€€€€¤¤¤°(€€€€€€€€€€€AÉ½Ù¥‘•ÉQåÁ”èé¥åQÑÌ€ôø=¬¡M•±˜èé¥åQÑÌ¡9…Ñ¥Ù•‘…ÁÑ•Èèé¹•Ü (€€€€€€€€€€€€€€€¹…µ”°(€€€€€€€€€€€€€€€AÉ½Ù¥‘•ÉQåÁ”èé¥åQÑÌ°(€€€€€€€€€€€€€€€½¹™¥œ°(€€€€€€€€€€€€¤¤¤°(€€€€€€€ô(€€€ô((€€€ÁÕˆ™¸‘•ÍÉ¥ÁÑ½È ™Í•±˜¤€´øAÉ½Ù¥‘•É•ÍÉ¥ÁÑ½Èì(€€€€€€€±•ÐµÕÐ‘•ÍÉ¥ÁÑ½È€ôµ…Ñ Í•±˜ì(€€€€€€€€€€€M•±˜èé=Á•¹¤¡…‘…ÁÑ•È¤€ôø…‘…ÁÑ•È¹‘•ÍÉ¥ÁÑ½È ¤°(€€€€€€€€€€€M•±˜èé••ÁÉ…µMÑÐ¡…‘…ÁÑ•È¤ðM•±˜èé±•Ù•¹±…‰ÍQÑÌ¡…‘…ÁÑ•È¤ðM•±˜èé¥åQÑÌ¡…‘…ÁÑ•È¤€ôøì(€€€€€€€€€€€€€€€…‘…ÁÑ•È¹‘•ÍÉ¥ÁÑ½È ¤(€€€€€€€€€€€ô(€€€€€€€ôì(€€€€€€€‘•ÍÉ¥ÁÑ½È¹ÍÕÁÁ½ÉÑÍ}ÍÑÐ€ôÍ•±˜¹ÍÕÁÁ½ÉÑÍ}µ½‘…±¥Ñä¡5½‘…±¥ÑäèéMÑÐ¤ì(€€€€€€€‘•ÍÉ¥ÁÑ½È¹ÍÕÁÁ½ÉÑÍ}ÑÑÌ€ôÍ•±˜¹ÍÕÁÁ½ÉÑÍ}µ½‘…±¥Ñä¡5½‘…±¥ÑäèéQÑÌ¤ì(€€€€€€€‘•ÍÉ¥ÁÑ½È(€€€ô((€€€ÁÕˆ™¸ÍÕÁÁ½ÉÑÍ}µ½‘…±¥Ñä ™Í•±˜°µ½‘…±¥Ñäè5½‘…±¥Ñä¤€´ø‰½½°ì(€€€€€€€µ…Ñ Í•±˜ì(€€€€€€€€€€€M•±˜èé=Á•¹¤¡…‘…ÁÑ•È¤€ôø…‘…ÁÑ•È¹ÍÕÁÁ½ÉÑÍ}µ½‘…±¥Ñä¡µ½‘…±¥Ñä¤°(€€€€€€€€€€€M•±˜èé••ÁÉ…µMÑÐ¡…‘…ÁÑ•È¤ðM•±˜èé±•Ù•¹±…‰ÍQÑÌ¡…‘…ÁÑ•È¤ðM•±˜èé¥åQÑÌ¡…‘…ÁÑ•È¤€ôøì(€€€€€€€€€€€€€€€…‘…ÁÑ•È¹ÍÕÁÁ½ÉÑÍ}µ½‘…±¥Ñä¡µ½‘…±¥Ñä¤(€€€€€€€€€€€ô(€€€€€€€ô(€€€ô((€€€ÁÕˆ™¸½Á•¹…¥}…Õ‘¥½}ÍÁ••¡}•¹‘Á½¥¹Ð ™Í•±˜¤€´øI•ÍÕ±Ðñ=Á•¹¥¹‘Á½¥¹Ð°AÉ½Ù¥‘•ÉÉÉ½Èøì(€€€€€€€µ…Ñ Í•±˜ì(€€€€€€€€€€€M•±˜èé=Á•¹¤¡…‘…ÁÑ•È¤¥˜…‘…ÁÑ•È¹ÍÕÁÁ½ÉÑÍ}µ½‘…±¥Ñä¡5½‘…±¥ÑäèéQÑÌ¤€ôøì(€€€€€€€€€€€€€€€=¬¡=Á•¹¥¹‘Á½¥¹Ðì(€€€€€€€€€€€€€€€€€€€ÕÉ°è™½Éµ…Ð„ ‰íô½…Õ‘¥¼½ÍÁ•• ˆ°…‘…ÁÑ•È¹‰…Í•}ÕÉ°¤°(€€€€€€€€€€€€€€€€€€€…ÕÑ¡½É¥é…Ñ¥½¸è…‘…ÁÑ•È¹…ÕÑ¡½É¥é…Ñ¥½¸ ¤ü°(€€€€€€€€€€€€€€€ô¤(€€€€€€€€€€€ô(€€€€€€€€€€€M•±˜èé=Á•¹¤¡…‘…ÁÑ•È¤€ôøÉÈ¡AÉ½Ù¥‘•ÉÉÉ½ÈèéU¹ÍÕÁÁ½ÉÑ•‘A…ÍÍÑ¡É½Õ ì(€€€€€€€€€€€€€€€ÁÉ½Ù¥‘•Èè…‘…ÁÑ•È¹¹…µ”¹±½¹” ¤°(€€€€€€€€€€€€€€€•¹‘Á½¥¹Ðè€ˆ½ØÄ½…Õ‘¥¼½ÍÁ•• ˆ°(€€€€€€€€€€€ô¤°(€€€€€€€€€€€M•±˜èé••ÁÉ…µMÑÐ¡…‘…ÁÑ•È¤ðM•±˜èé±•Ù•¹±…‰ÍQÑÌ¡…‘…ÁÑ•È¤ðM•±˜èé¥åQÑÌ¡…‘…ÁÑ•È¤€ôøì(€€€€€€€€€€€€€€€ÉÈ¡AÉ½Ù¥‘•ÉÉÉ½ÈèéU¹ÍÕÁÁ½ÉÑ•‘A…ÍÍÑ¡É½Õ ì(€€€€€€€€€€€€€€€€€€€ÁÉ½Ù¥‘•Èè…‘…ÁÑ•È¹¹…µ”¹±½¹” ¤°(€€€€€€€€€€€€€€€€€€€•¹‘Á½¥¹Ðè€ˆ½ØÄ½…Õ‘¥¼½ÍÁ•• ˆ°(€€€€€€€€€€€€€€€ô¤(€€€€€€€€€€€ô(€€€€€€€ô(€€€ô((€€€ÁÕˆ™¸½Á•¹…¥}…Õ‘¥½}ÑÉ…¹ÍÉ¥ÁÑ¥½¹Í}•¹‘Á½¥¹Ð ™Í•±˜¤€´øI•ÍÕ±Ðñ=Á•¹¥¹‘Á½¥¹Ð°AÉ½Ù¥‘•ÉÉÉ½Èøì(€€€€€€€µ…Ñ Í•±˜ì(€€€€€€€€€€€M•±˜èé=Á•¹¤¡…‘…ÁÑ•È¤¥˜…‘…ÁÑ•È¹ÍÕÁÁ½ÉÑÍ}µ½‘…±¥Ñä¡5½‘…±¥ÑäèéMÑÐ¤€ôøì(€€€€€€€€€€€€€€€=¬¡=Á•¹¥¹‘Á½¥¹Ðì(€€€€€€€€€€€€€€€€€€€ÕÉ°è™½Éµ…Ð„ ‰íô½…Õ‘¥¼½ÑÉ…¹ÍÉ¥ÁÑ¥½¹Ìˆ°…‘…ÁÑ•È¹‰…Í•}ÕÉ°¤°(€€€€€€€€€€€€€€€€€€€…ÕÑ¡½É¥é…Ñ¥½¸è…‘…ÁÑ•È¹…ÕÑ¡½É¥é…Ñ¥½¸ ¤ü°(€€€€€€€€€€€€€€€ô¤(€€€€€€€€€€€ô(€€€€€€€€€€€M•±˜èé=Á•¹¤¡…‘…ÁÑ•È¤€ôøÉÈ¡AÉ½Ù¥‘•ÉÉÉ½ÈèéU¹ÍÕÁÁ½ÉÑ•‘A…ÍÍÑ¡É½Õ ì(€€€€€€€€€€€€€€€ÁÉ½Ù¥‘•Èè…‘…ÁÑ•È¹¹…µ”¹±½¹” ¤°(€€€€€€€€€€€€€€€•¹‘Á½¥¹Ðè€ˆ½ØÄ½…Õ‘¥¼½ÑÉ…¹ÍÉ¥ÁÑ¥½¹Ìˆ°(€€€€€€€€€€€ô¤°(€€€€€€€€€€€M•±˜èé••ÁÉ…µMÑÐ¡…‘…ÁÑ•È¤ðM•±˜èé±•Ù•¹±…‰ÍQÑÌ¡…‘…ÁÑ•È¤ðM•±˜èé¥åQÑÌ¡…‘…ÁÑ•È¤€ôøì(€€€€€€€€€€€€€€€ÉÈ¡AÉ½Ù¥‘•ÉÉÉ½ÈèéU¹ÍÕÁÁ½ÉÑ•‘A…ÍÍÑ¡É½Õ ì(€€€€€€€€€€€€€€€€€€€ÁÉ½Ù¥‘•Èè…‘…ÁÑ•È¹¹…µ”¹±½¹” ¤°(€€€€€€€€€€€€€€€€€€€•¹‘Á½¥¹Ðè€ˆ½ØÄ½…Õ‘¥¼½ÑÉ…¹ÍÉ¥ÁÑ¥½¹Ìˆ°(€€€€€€€€€€€€€€€ô¤(€€€€€€€€€€€ô(€€€€€€€ô(€€€ô)ô((m‘•É¥Ù”¡•‰Õœ°±½¹”°A…ÉÑ¥…±Ä°Ä¥t)ÁÕˆÍÑÉÕÐ=Á•¹¥¹‘Á½¥¹Ðì(€€€ÁÕˆÕÉ°èMÑÉ¥¹œ°(€€€ÁÕˆ…ÕÑ¡½É¥é…Ñ¥½¸è=ÁÑ¥½¸ñMÑÉ¥¹œø°)ô((m‘•É¥Ù”¡•‰Õœ°±½¹”°A…ÉÑ¥…±Ä°Ä¥t)ÁÕˆÍÑÉÕÐ=Á•¹¥‘…ÁÑ•Èì(€€€¹…µ”èMÑÉ¥¹œ°(€€€ÁÉ½Ù¥‘•É}ÑåÁ”èAÉ½Ù¥‘•ÉQåÁ”°(€€€‰…Í•}ÕÉ°èMÑÉ¥¹œ°(€€€…Á¥}­•å}•¹Øè=ÁÑ¥½¸ñMÑÉ¥¹œø°(€€€…Á¥}­•äè=ÁÑ¥½¸ñMÑÉ¥¹œø°(€€€Ñ…ÌèY•ŒñMÑÉ¥¹œø°)ô()¥µÁ°=Á•¹¥‘…ÁÑ•Èì(€€€™¸™É½µ}½¹™¥œ¡¹…µ”è€™ÍÑÈ°½¹™¥œè€™AÉ½Ù¥‘•É½¹™¥œ¤€´øI•ÍÕ±ÐñM•±˜°AÉ½Ù¥‘•ÉÉÉ½Èøì(€€€€€€€±•Ð‰…Í•}ÕÉ°€ô½¹™¥œ(€€€€€€€€€€€€¹‰…Í•}ÕÉ°(€€€€€€€€€€€€¹±½¹” ¤(€€€€€€€€€€€€¹½­}½É}•±Í”¡ñðAÉ½Ù¥‘•ÉÉÉ½Èèé5¥ÍÍ¥¹	…Í•UÉ°¡¹…µ”¹Ñ½}ÍÑÉ¥¹œ ¤¤¤üì((€€€€€€€=¬¡M•±˜ì(€€€€€€€€€€€¹…µ”è¹…µ”¹Ñ½}ÍÑÉ¥¹œ ¤°(€€€€€€€€€€€ÁÉ½Ù¥‘•É}ÑåÁ”è½¹™¥œ¹ÁÉ½Ù¥‘•É}ÑåÁ”¹±½¹” ¤°(€€€€€€€€€€€‰…Í•}ÕÉ°è¹½Éµ…±¥é•}‰…Í•}ÕÉ° ™‰…Í•}ÕÉ°¤°(€€€€€€€€€€€…Á¥}­•å}•¹Øè½¹™¥œ¹…Á¥}­•å}•¹Ø¹±½¹” ¤°(€€€€€€€€€€€…Á¥}­•äè½¹™¥œ¹…Á¥}­•ä¹±½¹” ¤°(€€€€€€€€€€€Ñ…Ìè½¹™¥œ¹Ñ…Ì¹±½¹” ¤°(€€€€€€€ô¤(€€€ô((€€€™¸…ÕÑ¡½É¥é…Ñ¥½¸ ™Í•±˜¤€´øI•ÍÕ±Ðñ=ÁÑ¥½¸ñMÑÉ¥¹œø°AÉ½Ù¥‘•ÉÉÉ½Èøì(€€€€€€€¥˜±•ÐM½µ”¡…Á¥}­•ä¤€ô€™Í•±˜¹…Á¥}­•äì(€€€€€€€€€€€É•ÑÕÉ¸=¬¡M½µ”¡™½Éµ…Ð„ ‰	•…É•Èí…Á¥}­•åôˆ¤¤¤ì(€€€€€€€ô((€€€€€€€±•ÐM½µ”¡•¹Ù}¹…µ”¤€ô€™Í•±˜¹…Á¥}­•å}•¹Ø•±Í”ì(€€€€€€€€€€€É•ÑÕÉ¸=¬¡9½¹”¤ì(€€€€€€€ôì((€€€€€€€ÍÑèé•¹ØèéÙ…È¡•¹Ù}¹…µ”¤(€€€€€€€€€€€€¹µ…À¡ñ…Á¥}­•åðM½µ”¡™½Éµ…Ð„ ‰	•…É•Èí…Á¥}­•åôˆ¤¤¤(€€€€€€€€€€€€¹µ…Á}•ÉÈ¡ñ}ðAÉ½Ù¥‘•ÉÉÉ½Èèé5¥ÍÍ¥¹Á¥-•å¹Øì(€€€€€€€€€€€€€€€ÁÉ½Ù¥‘•ÈèÍ•±˜¹¹…µ”¹±½¹” ¤°(€€€€€€€€€€€€€€€•¹Ù}¹…µ”è•¹Ù}¹…µ”¹±½¹” ¤°(€€€€€€€€€€€ô¤(€€€ô((€€€™¸ÍÕÁÁ½ÉÑÍ}µ½‘…±¥Ñä ™Í•±˜°µ½‘…±¥Ñäè5½‘…±¥Ñä¤€´ø‰½½°ì(€€€€€€€µ…Ñ µ½‘…±¥Ñäì(€€€€€€€€€€€5½‘…±¥ÑäèéMÑÐ€ôøµ…Ñ¡•Ì„ (€€€€€€€€€€€€€€€Í•±˜¹ÁÉ½Ù¥‘•É}ÑåÁ”°(€€€€€€€€€€€€€€€AÉ½Ù¥‘•ÉQåÁ”èé=Á•¹…¥Õ‘¥¼ðAÉ½Ù¥‘•ÉQåÁ”èé=Á•¹…¥MÑÐ(€€€€€€€€€€€€¤°(€€€€€€€€€€€5½‘…±¥ÑäèéQÑÌ€ôøµ…Ñ¡•Ì„ (€€€€€€€€€€€€€€€Í•±˜¹ÁÉ½Ù¥‘•É}ÑåÁ”°(€€€€€€€€€€€€€€€AÉ½Ù¥‘•ÉQåÁ”èé=Á•¹…¥Õ‘¥¼ðAÉ½Ù¥‘•ÉQåÁ”èé=Á•¹…¥QÑÌ(€€€€€€€€€€€€¤°(€€€€€€€ô(€€€ô((€€€™¸‘•ÍÉ¥ÁÑ½È ™Í•±˜¤€´øAÉ½Ù¥‘•É•ÍÉ¥ÁÑ½Èì(€€€€€€€AÉ½Ù¥‘•É•ÍÉ¥ÁÑ½Èì(€€€€€€€€€€€¹…µ”èÍ•±˜¹¹…µ”¹±½¹” ¤°(€€€€€€€€€€€ÁÉ½Ù¥‘•É}ÑåÁ”èÍ•±˜¹ÁÉ½Ù¥‘•É}ÑåÁ”¹±½¹” ¤°(€€€€€€€€€€€ÍÕÁÁ½ÉÑÍ}ÍÑÐèÍ•±˜¹ÍÕÁÁ½ÉÑÍ}µ½‘…±¥Ñä¡5½‘…±¥ÑäèéMÑÐ¤°(€€€€€€€€€€€ÍÕÁÁ½ÉÑÍ}ÑÑÌèÍ•±˜¹ÍÕÁÁ½ÉÑÍ}µ½‘…±¥Ñä¡5½‘…±¥ÑäèéQÑÌ¤°(€€€€€€€€€€€‰…Í•}ÕÉ°èM½µ”¡Í•±˜¹‰…Í•}ÕÉ°¹±½¹” ¤¤°(€€€€€€€€€€€Ñ…ÌèÍ•±˜¹Ñ…Ì¹±½¹” ¤°(€€€€€€€ô(€€€ô)ô((m‘•É¥Ù”¡•‰Õœ°±½¹”°A…ÉÑ¥…±Ä°Ä¥t)ÁÕˆÍÑÉÕÐ9…Ñ¥Ù•‘…ÁÑ•Èì(€€€¹…µ”èMÑÉ¥¹œ°(€€€ÁÉ½Ù¥‘•É}ÑåÁ”èAÉ½Ù¥‘•ÉQåÁ”°(€€€…Á¥}­•å}•¹Øè=ÁÑ¥½¸ñMÑÉ¥¹œø°(€€€…Á¥}­•äè=ÁÑ¥½¸ñMÑÉ¥¹œø°(€€€µ½‘•°è=ÁÑ¥½¸ñMÑÉ¥¹œø°(€€€±…¹Õ…”è=ÁÑ¥½¸ñMÑÉ¥¹œø°(€€€½ÕÑÁÕÑ}™½Éµ…Ðè=ÁÑ¥½¸ñMÑÉ¥¹œø°(€€€µ½‘”è=ÁÑ¥½¸ñMÑÉ¥¹œø°(€€€Íµ…ÉÑ}™½Éµ…Ðè=ÁÑ¥½¸ñ‰½½°ø°(€€€ÁÕ¹ÑÕ…Ñ”è=ÁÑ¥½¸ñ‰½½°ø°(€€€Ñ…ÌèY•ŒñMÑÉ¥¹œø°)ô()¥µÁ°9…Ñ¥Ù•‘…ÁÑ•Èì(€€€™¸¹•Ü¡¹…µ”è€™ÍÑÈ°ÁÉ½Ù¥‘•É}ÑåÁ”èAÉ½Ù¥‘•ÉQåÁ”°½¹™¥œè€™AÉ½Ù¥‘•É½¹™¥œ¤€´øM•±˜ì(€€€€€€€M•±˜ì(€€€€€€€€€€€¹…µ”è¹…µ”¹Ñ½}ÍÑÉ¥¹œ ¤°(€€€€€€€€€€€ÁÉ½Ù¥‘•É}ÑåÁ”°(€€€€€€€€€€€…Á¥}­•å}•¹Øè½¹™¥œ¹…Á¥}­•å}•¹Ø¹±½¹” ¤°(€€€€€€€€€€€…Á¥}­•äè½¹™¥œ¹…Á¥}­•ä¹±½¹” ¤°(€€€€€€€€€€€µ½‘•°è½¹™¥œ¹µ½‘•°¹±½¹” ¤°(€€€€€€€€€€€±…¹Õ…”è½¹™¥œ¹±…¹Õ…”¹±½¹” ¤°(€€€€€€€€€€€½ÕÑÁÕÑ}™½Éµ…Ðè½¹™¥œ¹½ÕÑÁÕÑ}™½Éµ…Ð¹±½¹” ¤°(€€€€€€€€€€€µ½‘”è½¹™¥œ¹µ½‘”¹±½¹” ¤°(€€€€€€€€€€€Íµ…ÉÑ}™½Éµ…Ðè½¹™¥œ¹Íµ…ÉÑ}™½Éµ…Ð°(€€€€€€€€€€€ÁÕ¹ÑÕ…Ñ”è½¹™¥œ¹ÁÕ¹ÑÕ…Ñ”°(€€€€€€€€€€€Ñ…Ìè½¹™¥œ¹Ñ…Ì¹±½¹” ¤°(€€€€€€€ô(€€€ô((€€€ÁÕˆ™¸…Á¥}­•ä ™Í•±˜¤€´øI•ÍÕ±ÐñMÑÉ¥¹œ°AÉ½Ù¥‘•ÉÉÉ½Èøì(€€€€€€€¥˜±•ÐM½µ”¡…Á¥}­•ä¤€ô€™Í•±˜¹…Á¥}­•äì(€€€€€€€€€€€É•ÑÕÉ¸=¬¡…Á¥}­•ä¹±½¹” ¤¤ì(€€€€€€€ô((€€€€€€€±•ÐM½µ”¡•¹Ù}¹…µ”¤€ô€™Í•±˜¹…Á¥}­•å}•¹Ø•±Í”ì(€€€€€€€€€€€É•ÑÕÉ¸ÉÈ¡AÉ½Ù¥‘•ÉÉÉ½Èèé5¥ÍÍ¥¹Á¥-•ä¡Í•±˜¹¹…µ”¹±½¹” ¤¤¤ì(€€€€€€€ôì((€€€€€€€ÍÑèé•¹ØèéÙ…È¡•¹Ù}¹…µ”¤¹µ…Á}•ÉÈ¡ñ}ðAÉ½Ù¥‘•ÉÉÉ½Èèé5¥ÍÍ¥¹Á¥-•å¹Øì(€€€€€€€€€€€ÁÉ½Ù¥‘•ÈèÍ•±˜¹¹…µ”¹±½¹” ¤°(€€€€€€€€€€€•¹Ù}¹…µ”è•¹Ù}¹…µ”¹±½¹” ¤°(€€€€€€€ô¤(€€€ô((€€€ÁÕˆ™¸¹…µ” ™Í•±˜¤€´ø€™ÍÑÈì(€€€€€€€€™Í•±˜¹¹…µ”(€€€ô((€€€ÁÕˆ™¸µ½‘•° ™Í•±˜¤€´ø=ÁÑ¥½¸ð™ÍÑÈøì(€€€€€€€Í•±˜¹µ½‘•°¹…Í}‘•É•˜ ¤(€€€ô((€€€ÁÕˆ™¸±…¹Õ…” ™Í•±˜¤€´ø=ÁÑ¥½¸ð™ÍÑÈøì(€€€€€€€Í•±˜¹±…¹Õ…”¹…Í}‘•É•˜ ¤(€€€ô((€€€ÁÕˆ™¸½ÕÑÁÕÑ}™½Éµ…Ð ™Í•±˜¤€´ø=ÁÑ¥½¸ð™ÍÑÈøì(€€€€€€€Í•±˜¹½ÕÑÁÕÑ}™½Éµ…Ð¹…Í}‘•É•˜ ¤(€€€ô((€€€ÁÕˆ™¸µ½‘” ™Í•±˜¤€´ø=ÁÑ¥½¸ð™ÍÑÈøì(€€€€€€€Í•±˜¹µ½‘”¹…Í}‘•É•˜ ¤(€€€ô((€€€ÁÕˆ™¸Íµ…ÉÑ}™½Éµ…Ð ™Í•±˜¤€´ø=ÁÑ¥½¸ñ‰½½°øì(€€€€€€€Í•±˜¹Íµ…ÉÑ}™½Éµ…Ð(€€€ô((€€€ÁÕˆ™¸ÁÕ¹ÑÕ…Ñ” ™Í•±˜¤€´ø=ÁÑ¥½¸ñ‰½½°øì(€€€€€€€Í•±˜¹ÁÕ¹ÑÕ…Ñ”(€€€ô((€€€™¸ÍÕÁÁ½ÉÑÍ}µ½‘…±¥Ñä ™Í•±˜°µ½‘…±¥Ñäè5½‘…±¥Ñä¤€´ø‰½½°ì(€€€€€€€µ…Ñ µ½‘…±¥Ñäì(€€€€€€€€€€€5½‘…±¥ÑäèéMÑÐ€ôøµ…Ñ¡•Ì„¡Í•±˜¹ÁÉ½Ù¥‘•É}ÑåÁ”°AÉ½Ù¥‘•ÉQåÁ”èé••ÁÉ…µMÑÐ¤°(€€€€€€€€€€€5½‘…±¥ÑäèéQÑÌ€ôøµ…Ñ¡•Ì„ (€€€€€€€€€€€€€€€Í•±˜¹ÁÉ½Ù¥‘•É}ÑåÁ”°(€€€€€€€€€€€€€€€AÉ½Ù¥‘•ÉQåÁ”èé±•Ù•¹±…‰ÍQÑÌðAÉ½Ù¥‘•ÉQåÁ”èé¥åQÑÌ(€€€€€€€€€€€€¤°(€€€€€€€ô(€€€ô((€€€™¸‘•ÍÉ¥ÁÑ½È ™Í•±˜¤€´øAÉ½Ù¥‘•É•ÍÉ¥ÁÑ½Èì(€€€€€€€AÉ½Ù¥‘•É•ÍÉ¥ÁÑ½Èì(€€€€€€€€€€€¹…µ”èÍ•±˜¹¹…µ”¹±½¹” ¤°(€€€€€€€€€€€ÁÉ½Ù¥‘•É}ÑåÁ”èÍ•±˜¹ÁÉ½Ù¥‘•É}ÑåÁ”¹±½¹” ¤°(€€€€€€€€€€€ÍÕÁÁ½ÉÑÍ}ÍÑÐèÍ•±˜¹ÍÕÁÁ½ÉÑÍ}µ½‘…±¥Ñä¡5½‘…±¥ÑäèéMÑÐ¤°(€€€€€€€€€€€ÍÕÁÁ½ÉÑÍ}ÑÑÌèÍ•±˜¹ÍÕÁÁ½ÉÑÍ}µ½‘…±¥Ñä¡5½‘…±¥ÑäèéQÑÌ¤°(€€€€€€€€€€€‰…Í•}ÕÉ°è9½¹”°(€€€€€€€€€€€Ñ…ÌèÍ•±˜¹Ñ…Ì¹±½¹” ¤°(€€€€€€€ô(€€€ô)ô()ÁÕˆ™¸‰Õ¥±‘}ÁÉ½Ù¥‘•É}…‘…ÁÑ•ÉÌ (€€€½¹™¥œè€™Y½¥•µÕá½¹™¥œ°(¤€´øI•ÍÕ±Ðñ	QÉ••5…ÀñMÑÉ¥¹œ°AÉ½Ù¥‘•É‘…ÁÑ•Èø°AÉ½Ù¥‘•ÉÉÉ½Èøì(€€€½¹™¥œ(€€€€€€€€¹ÁÉ½Ù¥‘•ÉÌ(€€€€€€€€¹¥Ñ•È ¤(€€€€€€€€¹µ…À¡ð¡¹…µ”°ÁÉ½Ù¥‘•È¥ðì(€€€€€€€€€€€AÉ½Ù¥‘•É‘…ÁÑ•Èèé™É½µ}½¹™¥œ¡¹…µ”°ÁÉ½Ù¥‘•È¤¹µ…À¡ñ…‘…ÁÑ•Éð€¡¹…µ”¹±½¹” ¤°…‘…ÁÑ•È¤¤(€€€€€€€ô¤(€€€€€€€€¹½±±•Ð ¤)ô()ÁÕˆ™¸ÁÉ½Ù¥‘•É}‘•ÍÉ¥ÁÑ½ÉÍ}™É½µ}…‘…ÁÑ•ÉÌ (€€€…‘…ÁÑ•ÉÌè€™	QÉ••5…ÀñMÑÉ¥¹œ°AÉ½Ù¥‘•É‘…ÁÑ•Èø°(¤€´øY•ŒñAÉ½Ù¥‘•É•ÍÉ¥ÁÑ½Èøì(€€€…‘…ÁÑ•ÉÌ¹Ù…±Õ•Ì ¤¹µ…À¡AÉ½Ù¥‘•É‘…ÁÑ•Èèé‘•ÍÉ¥ÁÑ½È¤¹½±±•Ð ¤)ô()™¸¹½Éµ…±¥é•}‰…Í•}ÕÉ°¡‰…Í•}ÕÉ°è€™ÍÑÈ¤€´øMÑÉ¥¹œì(€€€‰…Í•}ÕÉ°¹ÑÉ¥µ}•¹‘}µ…Ñ¡•Ì œ¼œ¤¹Ñ½}ÍÑÉ¥¹œ ¤)ô((m‘•É¥Ù”¡•‰Õœ°Ñ¡¥Í•ÉÉ½ÈèéÉÉ½È¥t)ÁÕˆ•¹Õ´AÉ½Ù¥‘•ÉÉÉ½Èì(€€€€m•ÉÉ½È ‰ÁÉ½Ù¥‘•È€ìÁôœÉ•ÅÕ¥É•Ì‰…Í•}ÕÉ°ˆ¥t(€€€5¥ÍÍ¥¹	…Í•UÉ°¡MÑÉ¥¹œ¤°(€€€€m•ÉÉ½È ‰ÁÉ½Ù¥‘•È€ìÁôœÉ•ÅÕ¥É•Ì…Á¥}­•ä½È…Á¥}­•å}•¹Øˆ¥t(€€€5¥ÍÍ¥¹Á¥-•ä¡MÑÉ¥¹œ¤°(€€€€m•ÉÉ½È ‰ÁÉ½Ù¥‘•È€íÁÉ½Ù¥‘•ÉôœÉ•ÅÕ¥É•Ì•¹Ù¥É½¹µ•¹ÐÙ…É¥…‰±”€í•¹Ù}¹…µ•ôœˆ¥t(€€€5¥ÍÍ¥¹Á¥-•å¹ØìÁÉ½Ù¥‘•ÈèMÑÉ¥¹œ°•¹Ù}¹…µ”èMÑÉ¥¹œô°(€€€€m•ÉÉ½È ‰ÁÉ½Ù¥‘•È€íÁÉ½Ù¥‘•Éôœ‘½•Ì¹½ÐÍÕÁÁ½ÉÐÁ…ÍÍÑ¡É½Õ •¹‘Á½¥¹Ð€í•¹‘Á½¥¹Ñôœˆ¥t(€€€U¹ÍÕÁÁ½ÉÑ•‘A…ÍÍÑ¡É½Õ ì(€€€€€€€ÁÉ½Ù¥‘•ÈèMÑÉ¥¹œ°(€€€€€€€•¹‘Á½¥¹Ðè€˜ÍÑ…Ñ¥ŒÍÑÈ°(€€€ô°)ô((m™œ¡Ñ•ÍÐ¥t)µ½Ñ•ÍÑÌì(€€€ÕÍ”ÍÕÁ•Èèè¨ì(€€€ÕÍ”É…Ñ”èé½¹™¥œèéY½¥•µÕá½¹™¥œì((€€€™¸•á…µÁ±•}½¹™¥œ ¤€´øY½¥•µÕá½¹™¥œì(€€€€€€€Y½¥•µÕá½¹™¥œèé™É½µ}å…µ°¡¥¹±Õ‘•}ÍÑÈ„ ˆ¸¸½•á…µÁ±•Ì½Ù½¥•µÕà¹å…µ°ˆ¤¤(€€€€€€€€€€€€¹•áÁ•Ð ‰•á…µÁ±”½¹™¥œÍ¡½Õ±Á…ÉÍ”ˆ¤(€€€ô((€€€€mÑ•ÍÑt(€€€™¸‰Õ¥±‘Í}…‘…ÁÑ•ÉÍ}™É½µ}•á…µÁ±•}½¹™¥œ ¤ì(€€€€€€€±•Ð½¹™¥œ€ô•á…µÁ±•}½¹™¥œ ¤ì(€€€€€€€±•Ð…‘…ÁÑ•ÉÌ€ô‰Õ¥±‘}ÁÉ½Ù¥‘•É}…‘…ÁÑ•ÉÌ ™½¹™¥œ¤¹•áÁ•Ð ‰…‘…ÁÑ•ÉÌÍ¡½Õ±‰Õ¥±ˆ¤ì((€€€€€€€…ÍÍ•ÉÑ}•Ä„¡…‘…ÁÑ•ÉÌ¹±•¸ ¤°½¹™¥œ¹ÁÉ½Ù¥‘•ÉÌ¹±•¸ ¤¤ì(€€€€€€€…ÍÍ•ÉÐ„¡…‘…ÁÑ•ÉÍl‰ÍÁ•…¡•Ì‰t¹ÍÕÁÁ½ÉÑÍ}µ½‘…±¥Ñä¡5½‘…±¥ÑäèéMÑÐ¤¤ì(€€€€€€€…ÍÍ•ÉÐ„¡…‘…ÁÑ•ÉÍl‰ÍÁ•…¡•Ì‰t¹ÍÕÁÁ½ÉÑÍ}µ½‘…±¥Ñä¡5½‘…±¥ÑäèéQÑÌ¤¤ì(€€€€€€€…ÍÍ•ÉÐ„¡…‘…ÁÑ•ÉÍl‰‘••ÁÉ…´‰t¹ÍÕÁÁ½ÉÑÍ}µ½‘…±¥Ñä¡5½‘…±¥ÑäèéMÑÐ¤¤ì(€€€€€€€…ÍÍ•ÉÐ„ ……‘…ÁÑ•ÉÍl‰‘••ÁÉ…´‰t¹ÍÕÁÁ½ÉÑÍ}µ½‘…±¥Ñä¡5½‘…±¥ÑäèéQÑÌ¤¤ì(€€€€€€€…ÍÍ•ÉÐ„ ……‘…ÁÑ•ÉÍl‰±½…±}­½­½É¼‰t¹ÍÕÁÁ½ÉÑÍ}µ½‘…±¥Ñä¡5½‘…±¥ÑäèéMÑÐ¤¤ì(€€€€€€€…ÍÍ•ÉÐ„¡…‘…ÁÑ•ÉÍl‰±½…±}­½­½É¼‰t¹ÍÕÁÁ½ÉÑÍ}µ½‘…±¥Ñä¡5½‘…±¥ÑäèéQÑÌ¤¤ì(€€€ô((€€€€mÑ•ÍÑt(€€€™¸½¹™¥ÕÉ•Í}¥å}…Í}…}¹…Ñ¥Ù•}ÑÑÍ}ÁÉ½Ù¥‘•È ¤ì(€€€€€€€±•Ð½¹™¥œ€ôY½¥•µÕá½¹™¥œèé™É½µ}å…µ° (€€€€€€€€€€€ÈŒˆ)…Ñ¥Ù•}ÁÉ½™¥±”èÑ•ÍÐ)ÁÉ½™¥±•Ìè(€Ñ•ÍÐè(€€€ÍÑÐèm±½…±}Ý¡¥ÍÁ•Ét(€€€ÑÑÌèm¥åt)ÁÉ½Ù¥‘•ÉÌè(€±½…±}Ý¡¥ÍÁ•Èè(€€€ÑåÁ”è½Á•¹…¥}ÍÑÐ(€€€‰…Í•}ÕÉ°è¡ÑÑÀè¼¼ÄÈÜ¸À¸À¸ÄèÈÀÈÈ½ØÄ(€¥äè(€€€ÑåÁ”è¥å}ÑÑÌ(€€€…Á¥}­•å}•¹Øè%e}A%}-d(€€€µ½‘•°è¥åÍÁ•• (€€€µ½‘”èÍÑÉ•…µ¥¹œ(€€€½ÕÑÁÕÑ}™½Éµ…ÐèÁµ|ÈÐÀÀÀ)…±¥…Í•Ìè(€Ù½¥•Ìè(€€€…ÍÍ¥ÍÑ…¹Ðè(€€€€€¥äè€ÀÀÀÀÀÀÀÀ´ÀÀÀÀ´ÐÀÀÀ´àÀÀÀ´ÀÀÀÀÀÀÀÀÀÀÀÄ(ˆŒ°(€€€€€€€€¤(€€€€€€€€¹•áÁ•Ð ‰¥ä½¹™¥œÍ¡½Õ±Á…ÉÍ”…¹Ù…±¥‘…Ñ”ˆ¤ì(€€€€€€€±•Ð…‘…ÁÑ•ÉÌ€ô‰Õ¥±‘}ÁÉ½Ù¥‘•É}…‘…ÁÑ•ÉÌ ™½¹™¥œ¤¹•áÁ•Ð ‰¥ä…‘…ÁÑ•ÈÍ¡½Õ±‰Õ¥±ˆ¤ì(€€€€€€€±•Ð¥ä€ô€™…‘…ÁÑ•ÉÍl‰¥ä‰tì((€€€€€€€…ÍÍ•ÉÐ„¡¥ä¹ÍÕÁÁ½ÉÑÍ}µ½‘…±¥Ñä¡5½‘…±¥ÑäèéQÑÌ¤¤ì(€€€€€€€…ÍÍ•ÉÐ„ …¥ä¹ÍÕÁÁ½ÉÑÍ}µ½‘…±¥Ñä¡5½‘…±¥ÑäèéMÑÐ¤¤ì(€€€€€€€…ÍÍ•ÉÑ}•Ä„¡¥ä¹‘•ÍÉ¥ÁÑ½È ¤¹ÁÉ½Ù¥‘•É}ÑåÁ”°AÉ½Ù¥‘•ÉQåÁ”èé¥åQÑÌ¤ì(€€€€€€€±•ÐAÉ½Ù¥‘•É‘…ÁÑ•Èèé¥åQÑÌ¡¹…Ñ¥Ù”¤€ô¥ä•±Í”ì(€€€€€€€€€€€Á…¹¥Œ„ ‰•áÁ•Ñ•¥ä¹…Ñ¥Ù”…‘…ÁÑ•Èˆ¤ì(€€€€€€€ôì(€€€€€€€…ÍÍ•ÉÑ}•Ä„¡¹…Ñ¥Ù”¹µ½‘” ¤°M½µ” ‰ÍÑÉ•…µ¥¹œˆ¤¤ì(€€€€€€€…ÍÍ•ÉÑ}•Ä„¡¹…Ñ¥Ù”¹µ½‘•° ¤°M½µ” ‰¥åÍÁ•• ˆ¤¤ì(€€€€€€€…ÍÍ•ÉÑ}•Ä„¡¹…Ñ¥Ù”¹½ÕÑÁÕÑ}™½Éµ…Ð ¤°M½µ” ‰Áµ|ÈÐÀÀÀˆ¤¤ì(€€€ô((€€€€mÑ•ÍÑt(€€€™¸É•ÑÕÉ¹Í}ÁÉ½Ù¥‘•É}‘•ÍÉ¥ÁÑ½ÉÌ ¤ì(€€€€€€€±•Ð½¹™¥œ€ô•á…µÁ±•}½¹™¥œ ¤ì(€€€€€€€±•Ð…‘…ÁÑ•ÉÌ€ô‰Õ¥±‘}ÁÉ½Ù¥‘•É}…‘…ÁÑ•ÉÌ ™½¹™¥œ¤¹•áÁ•Ð ‰…‘…ÁÑ•ÉÌÍ¡½Õ±‰Õ¥±ˆ¤ì(€€€€€€€±•Ð‘•ÍÉ¥ÁÑ½ÉÌ€ôÁÉ½Ù¥‘•É}‘•ÍÉ¥ÁÑ½ÉÍ}™É½µ}…‘…ÁÑ•ÉÌ ™…‘…ÁÑ•ÉÌ¤ì(€€€€€€€±•ÐÍÁ•…¡•Ì€ô‘•ÍÉ¥ÁÑ½ÉÌ(€€€€€€€€€€€€¹¥Ñ•È ¤(€€€€€€€€€€€€¹™¥¹¡ñÁÉ½Ù¥‘•ÉðÁÉ½Ù¥‘•È¹¹…µ”€ôô€‰ÍÁ•…¡•Ìˆ¤(€€€€€€€€€€€€¹•áÁ•Ð ‰ÍÁ•…¡•Ì‘•ÍÉ¥ÁÑ½ÈÍ¡½Õ±•á¥ÍÐˆ¤ì((€€€€€€€…ÍÍ•ÉÑ}•Ä„¡ÍÁ•…¡•Ì¹ÁÉ½Ù¥‘•É}ÑåÁ”°AÉ½Ù¥‘•ÉQåÁ”èé=Á•¹…¥Õ‘¥¼¤ì(€€€€€€€…ÍÍ•ÉÐ„¡ÍÁ•…¡•Ì¹ÍÕÁÁ½ÉÑÍ}ÍÑÐ¤ì(€€€€€€€…ÍÍ•ÉÐ„¡ÍÁ•…¡•Ì¹ÍÕÁÁ½ÉÑÍ}ÑÑÌ¤ì(€€€€€€€…ÍÍ•ÉÑ}•Ä„ (€€€€€€€€€€€ÍÁ•…¡•Ì¹‰…Í•}ÕÉ°¹…Í}‘•É•˜ ¤°(€€€€€€€€€€€M½µ” ‰¡ÑÑÀè¼¼ÄÈÜ¸À¸À¸ÄèàÀÀÀ½ØÄˆ¤(€€€€€€€€¤ì(€€€ô((€€€€mÑ•ÍÑt(€€€™¸É•©•ÑÍ}½Á•¹…¥}ÁÉ½Ù¥‘•É}Ý¥Ñ¡½ÕÑ}‰…Í•}ÕÉ° ¤ì(€€€€€€€±•Ðå…µ°€ôÈŒˆ)…Ñ¥Ù•}ÁÉ½™¥±”è±½…°)ÁÉ½™¥±•Ìè(€±½…°è(€€€ÍÑÐèm‰É½­•¹t(€€€ÑÑÌèm‰É½­•¹t)ÁÉ½Ù¥‘•ÉÌè(€‰É½­•¸è(€€€ÑåÁ”è½Á•¹…¥}…Õ‘¥¼(ˆŒì((€€€€€€€±•Ð½¹™¥œ€ôY½¥•µÕá½¹™¥œèé™É½µ}å…µ°¡å…µ°¤¹•áÁ•Ð ‰½¹™¥œÍ¡…Á”Í¡½Õ±Á…ÉÍ”ˆ¤ì(€€€€€€€±•Ð•ÉÉ½È€ô‰Õ¥±‘}ÁÉ½Ù¥‘•É}…‘…ÁÑ•ÉÌ ™½¹™¥œ¤¹•áÁ•Ñ}•ÉÈ ‰…‘…ÁÑ•ÈÍ¡½Õ±™…¥°ˆ¤ì((€€€€€€€…ÍÍ•ÉÐ„¡µ…Ñ¡•Ì„¡•ÉÉ½È°AÉ½Ù¥‘•ÉÉÉ½Èèé5¥ÍÍ¥¹	…Í•UÉ°¡ÁÉ½Ù¥‘•È¤¥˜ÁÉ½Ù¥‘•È€ôô€‰‰É½­•¸ˆ¤¤ì(€€€ô((€€€€mÑ•ÍÑt(€€€™¸‰Õ¥±‘Í}½Á•¹…¥}ÍÁ••¡}•¹‘Á½¥¹Ð ¤ì(€€€€€€€±•Ð½¹™¥œ€ô•á…µÁ±•}½¹™¥œ ¤ì(€€€€€€€±•Ð…‘…ÁÑ•ÉÌ€ô‰Õ¥±‘}ÁÉ½Ù¥‘•É}…‘…ÁÑ•ÉÌ ™½¹™¥œ¤¹•áÁ•Ð ‰…‘…ÁÑ•ÉÌÍ¡½Õ±‰Õ¥±ˆ¤ì(€€€€€€€±•Ð•¹‘Á½¥¹Ð€ô…‘…ÁÑ•ÉÍl‰±½…±}­½­½É¼‰t(€€€€€€€€€€€€¹½Á•¹…¥}…Õ‘¥½}ÍÁ••¡}•¹‘Á½¥¹Ð ¤(€€€€€€€€€€€€¹•áÁ•Ð ‰ÍÁ•• •¹‘Á½¥¹ÐÍ¡½Õ±‰Õ¥±ˆ¤ì((€€€€€€€…ÍÍ•ÉÑ}•Ä„¡•¹‘Á½¥¹Ð¹ÕÉ°°€‰¡ÑÑÀè¼¼ÄÈÜ¸À¸À¸ÄèàààÀ½ØÄ½…Õ‘¥¼½ÍÁ•• ˆ¤ì(€€€€€€€…ÍÍ•ÉÑ}•Ä„ (€€€€€€€€€€€•¹‘Á½¥¹Ð¹…ÕÑ¡½É¥é…Ñ¥½¸¹…Í}‘•É•˜ ¤°(€€€€€€€€€€€M½µ” ‰	•…É•È¹½Ðµ¹••‘•µ‰ÕÐµ½Á•¹…¤µÍ‘­ÌµÉ•ÅÕ¥É”µ„µÙ…±Õ”ˆ¤(€€€€€€€€¤ì(€€€ô((€€€€mÑ•ÍÑt(€€€™¸É•©•ÑÍ}¹…Ñ¥Ù•}ÍÁ••¡}Á…ÍÍÑ¡É½Õ  ¤ì(€€€€€€€±•Ð½¹™¥œ€ô•á…µÁ±•}½¹™¥œ ¤ì(€€€€€€€±•Ð…‘…ÁÑ•ÉÌ€ô‰Õ¥±‘}ÁÉ½Ù¥‘•É}…‘…ÁÑ•ÉÌ ™½¹™¥œ¤¹•áÁ•Ð ‰…‘…ÁÑ•ÉÌÍ¡½Õ±‰Õ¥±ˆ¤ì(€€€€€€€±•Ð•ÉÉ½È€ô…‘…ÁÑ•ÉÍl‰•±•Ù•¹±…‰Ì‰t(€€€€€€€€€€€€¹½Á•¹…¥}…Õ‘¥½}ÍÁ••¡}•¹‘Á½¥¹Ð ¤(€€€€€€€€€€€€¹•áÁ•Ñ}•ÉÈ ‰¹…Ñ¥Ù”•¹‘Á½¥¹ÐÍ¡½Õ±¹½Ð‰Õ¥±å•Ðˆ¤ì((€€€€€€€…ÍÍ•ÉÐ„¡µ…Ñ¡•Ì„ (€€€€€€€€€€€•ÉÉ½È°(€€€€€€€€€€€AÉ½Ù¥‘•ÉÉÉ½ÈèéU¹ÍÕÁÁ½ÉÑ•‘A…ÍÍÑ¡É½Õ ìÁÉ½Ù¥‘•È°•¹‘Á½¥¹Ðô(€€€€€€€€€€€€€€€¥˜ÁÉ½Ù¥‘•È€ôô€‰•±•Ù•¹±…‰Ìˆ€˜˜•¹‘Á½¥¹Ð€ôô€ˆ½ØÄ½…Õ‘¥¼½ÍÁ•• ˆ(€€€€€€€€¤¤ì(€€€ô((€€€€mÑ•ÍÑt(€€€™¸‰Õ¥±‘Í}½Á•¹…¥}ÑÉ…¹ÍÉ¥ÁÑ¥½¹Í}•¹‘Á½¥¹Ð ¤ì(€€€€€€€±•Ð½¹™¥œ€ô•á…µÁ±•}½¹™¥œ ¤ì(€€€€€€€±•Ð…‘…ÁÑ•ÉÌ€ô‰Õ¥±‘}ÁÉ½Ù¥‘•É}…‘…ÁÑ•ÉÌ ™½¹™¥œ¤¹•áÁ•Ð ‰…‘…ÁÑ•ÉÌÍ¡½Õ±‰Õ¥±ˆ¤ì(€€€€€€€±•Ð•¹‘Á½¥¹Ð€ô…‘…ÁÑ•ÉÍl‰±½…±}Ý¡¥ÍÁ•È‰t(€€€€€€€€€€€€¹½Á•¹…¥}…Õ‘¥½}ÑÉ…¹ÍÉ¥ÁÑ¥½¹Í}•¹‘Á½¥¹Ð ¤(€€€€€€€€€€€€¹•áÁ•Ð ‰ÑÉ…¹ÍÉ¥ÁÑ¥½¹Ì•¹‘Á½¥¹ÐÍ¡½Õ±‰Õ¥±ˆ¤ì((€€€€€€€…ÍÍ•ÉÑ}•Ä„ (€€€€€€€€€€€•¹‘Á½¥¹Ð¹ÕÉ°°(€€€€€€€€€€€€‰¡ÑÑÀè¼¼ÄÈÜ¸À¸À¸ÄèÈÀÈÈ½ØÄ½…Õ‘¥¼½ÑÉ…¹ÍÉ¥ÁÑ¥½¹Ìˆ(€€€€€€€€¤ì(€€€€€€€…ÍÍ•ÉÑ}•Ä„ (€€€€€€€€€€€•¹‘Á½¥¹Ð¹…ÕÑ¡½É¥é…Ñ¥½¸¹…Í}‘•É•˜ ¤°(€€€€€€€€€€€M½µ” ‰	•…É•È¹½Ðµ¹••‘•µ‰ÕÐµ½Á•¹…¤µÍ‘­ÌµÉ•ÅÕ¥É”µ„µÙ…±Õ”ˆ¤(€€€€€€€€¤ì(€€€ô((€€€€mÑ•ÍÑt(€€€™¸É•©•ÑÍ}¹…Ñ¥Ù•}ÑÉ…¹ÍÉ¥ÁÑ¥½¹Í}Á…ÍÍÑ¡É½Õ  ¤ì(€€€€€€€±•Ð½¹™¥œ€ô•á…µÁ±•}½¹™¥œ ¤ì(€€€€€€€±•Ð…‘…ÁÑ•ÉÌ€ô‰Õ¥±‘}ÁÉ½Ù¥‘•É}…‘…ÁÑ•ÉÌ ™½¹™¥œ¤¹•áÁ•Ð ‰…‘…ÁÑ•ÉÌÍ¡½Õ±‰Õ¥±ˆ¤ì(€€€€€€€±•Ð•ÉÉ½È€ô…‘…ÁÑ•ÉÍl‰‘••ÁÉ…´‰t(€€€€€€€€€€€€¹½Á•¹…¥}…Õ‘¥½}ÑÉ…¹ÍÉ¥ÁÑ¥½¹Í}•¹‘Á½¥¹Ð ¤(€€€€€€€€€€€€¹•áÁ•Ñ}•ÉÈ ‰¹…Ñ¥Ù”•¹‘Á½¥¹ÐÍ¡½Õ±¹½Ð‰Õ¥±å•Ðˆ¤ì((€€€€€€€…ÍÍ•ÉÐ„¡µ…Ñ¡•Ì„ (€€€€€€€€€€€•ÉÉ½È°(€€€€€€€€€€€AÉ½Ù¥‘•ÉÉÉ½ÈèéU¹ÍÕÁÁ½ÉÑ•‘A…ÍÍÑ¡É½Õ ìÁÉ½Ù¥‘•È°•¹‘Á½¥¹Ðô(€€€€€€€€€€€€€€€¥˜ÁÉ½Ù¥‘•È€ôô€‰‘••ÁÉ…´ˆ€˜˜•¹‘Á½¥¹Ð€ôô€ˆ½ØÄ½…Õ‘¥¼½ÑÉ…¹ÍÉ¥ÁÑ¥½¹Ìˆ(€€€€€€€€¤¤ì(€€€ô)ô(
+use std::collections::BTreeMap;
+
+use serde::Serialize;
+
+use crate::config::{Modality, ProviderConfig, ProviderType, VoicemuxConfig};
+
+#[derive(Debug, Clone, PartialEq, Eq, Serialize)]
+pub struct ProviderDescriptor {
+    pub name: String,
+    pub provider_type: ProviderType,
+    pub supports_stt: bool,
+    pub supports_tts: bool,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub base_url: Option<String>,
+    pub tags: Vec<String>,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub enum ProviderAdapter {
+    OpenAi(OpenAiAdapter),
+    DeepgramStt(NativeAdapter),
+    ElevenlabsTts(NativeAdapter),
+    GiggyTts(NativeAdapter),
+}
+
+impl ProviderAdapter {
+    pub fn from_config(name: &str, config: &ProviderConfig) -> Result<Self, ProviderError> {
+        match config.provider_type {
+            ProviderType::OpenaiAudio | ProviderType::OpenaiStt | ProviderType::OpenaiTts => {
+                Ok(Self::OpenAi(OpenAiAdapter::from_config(name, config)?))
+            }
+            ProviderType::DeepgramStt => Ok(Self::DeepgramStt(NativeAdapter::new(
+                name,
+                ProviderType::DeepgramStt,
+                config,
+            ))),
+            ProviderType::ElevenlabsTts => Ok(Self::ElevenlabsTts(NativeAdapter::new(
+                name,
+                ProviderType::ElevenlabsTts,
+                config,
+            ))),
+            ProviderType::GiggyTts => Ok(Self::GiggyTts(NativeAdapter::new(
+                name,
+                ProviderType::GiggyTts,
+                config,
+            ))),
+        }
+    }
+
+    pub fn descriptor(&self) -> ProviderDescriptor {
+        let mut descriptor = match self {
+            Self::OpenAi(adapter) => adapter.descriptor(),
+            Self::DeepgramStt(adapter) | Self::ElevenlabsTts(adapter) | Self::GiggyTts(adapter) => {
+                adapter.descriptor()
+            }
+        };
+        descriptor.supports_stt = self.supports_modality(Modality::Stt);
+        descriptor.supports_tts = self.supports_modality(Modality::Tts);
+        descriptor
+    }
+
+    pub fn supports_modality(&self, modality: Modality) -> bool {
+        match self {
+            Self::OpenAi(adapter) => adapter.supports_modality(modality),
+            Self::DeepgramStt(adapter) | Self::ElevenlabsTts(adapter) | Self::GiggyTts(adapter) => {
+                adapter.supports_modality(modality)
+            }
+        }
+    }
+
+    pub fn openai_audio_speech_endpoint(&self) -> Result<OpenAiEndpoint, ProviderError> {
+        match self {
+            Self::OpenAi(adapter) if adapter.supports_modality(Modality::Tts) => {
+                Ok(OpenAiEndpoint {
+                    url: format!("{}/audio/speech", adapter.base_url),
+                    authorization: adapter.authorization()?,
+                })
+            }
+            Self::OpenAi(adapter) => Err(ProviderError::UnsupportedPassthrough {
+                provider: adapter.name.clone(),
+                endpoint: "/v1/audio/speech",
+            }),
+            Self::DeepgramStt(adapter) | Self::ElevenlabsTts(adapter) | Self::GiggyTts(adapter) => {
+                Err(ProviderError::UnsupportedPassthrough {
+                    provider: adapter.name.clone(),
+                    endpoint: "/v1/audio/speech",
+                })
+            }
+        }
+    }
+
+    pub fn openai_audio_transcriptions_endpoint(&self) -> Result<OpenAiEndpoint, ProviderError> {
+        match self {
+            Self::OpenAi(adapter) if adapter.supports_modality(Modality::Stt) => {
+                Ok(OpenAiEndpoint {
+                    url: format!("{}/audio/transcriptions", adapter.base_url),
+                    authorization: adapter.authorization()?,
+                })
+            }
+            Self::OpenAi(adapter) => Err(ProviderError::UnsupportedPassthrough {
+                provider: adapter.name.clone(),
+                endpoint: "/v1/audio/transcriptions",
+            }),
+            Self::DeepgramStt(adapter) | Self::ElevenlabsTts(adapter) | Self::GiggyTts(adapter) => {
+                Err(ProviderError::UnsupportedPassthrough {
+                    provider: adapter.name.clone(),
+                    endpoint: "/v1/audio/transcriptions",
+                })
+            }
+        }
+    }
+}
+
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct OpenAiEndpoint {
+    pub url: String,
+    pub authorization: Option<String>,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct OpenAiAdapter {
+    name: String,
+    provider_type: ProviderType,
+    base_url: String,
+    api_key_env: Option<String>,
+    api_key: Option<String>,
+    tags: Vec<String>,
+}
+
+impl OpenAiAdapter {
+    fn from_config(name: &str, config: &ProviderConfig) -> Result<Self, ProviderError> {
+        let base_url = config
+            .base_url
+            .clone()
+            .ok_or_else(|| ProviderError::MissingBaseUrl(name.to_string()))?;
+
+        Ok(Self {
+            name: name.to_string(),
+            provider_type: config.provider_type.clone(),
+            base_url: normalize_base_url(&base_url),
+            api_key_env: config.api_key_env.clone(),
+            api_key: config.api_key.clone(),
+            tags: config.tags.clone(),
+        })
+    }
+
+    fn authorization(&self) -> Result<Option<String>, ProviderError> {
+        if let Some(api_key) = &self.api_key {
+            return Ok(Some(format!("Bearer {api_key}")));
+        }
+
+        let Some(env_name) = &self.api_key_env else {
+            return Ok(None);
+        };
+
+        std::env::var(env_name)
+            .map(|api_key| Some(format!("Bearer {api_key}")))
+            .map_err(|_| ProviderError::MissingApiKeyEnv {
+                provider: self.name.clone(),
+                env_name: env_name.clone(),
+            })
+    }
+
+    fn supports_modality(&self, modality: Modality) -> bool {
+        match modality {
+            Modality::Stt => matches!(
+                self.provider_type,
+                ProviderType::OpenaiAudio | ProviderType::OpenaiStt
+            ),
+            Modality::Tts => matches!(
+                self.provider_type,
+                ProviderType::OpenaiAudio | ProviderType::OpenaiTts
+            ),
+        }
+    }
+
+    fn descriptor(&self) -> ProviderDescriptor {
+        ProviderDescriptor {
+            name: self.name.clone(),
+            provider_type: self.provider_type.clone(),
+            supports_stt: self.supports_modality(Modality::Stt),
+            supports_tts: self.supports_modality(Modality::Tts),
+            base_url: Some(self.base_url.clone()),
+            tags: self.tags.clone(),
+        }
+    }
+}
+
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct NativeAdapter {
+    name: String,
+    provider_type: ProviderType,
+    api_key_env: Option<String>,
+    api_key: Option<String>,
+    model: Option<String>,
+    language: Option<String>,
+    output_format: Option<String>,
+    mode: Option<String>,
+    smart_format: Option<bool>,
+    punctuate: Option<bool>,
+    tags: Vec<String>,
+}
+
+impl NativeAdapter {
+    fn new(name: &str, provider_type: ProviderType, config: &ProviderConfig) -> Self {
+        Self {
+            name: name.to_string(),
+            provider_type,
+            api_key_env: config.api_key_env.clone(),
+            api_key: config.api_key.clone(),
+            model: config.model.clone(),
+            language: config.language.clone(),
+            output_format: config.output_format.clone(),
+            mode: config.mode.clone(),
+            smart_format: config.smart_format,
+            punctuate: config.punctuate,
+            tags: config.tags.clone(),
+        }
+    }
+
+    pub fn api_key(&self) -> Result<String, ProviderError> {
+        if let Some(api_key) = &self.api_key {
+            return Ok(api_key.clone());
+        }
+
+        let Some(env_name) = &self.api_key_env else {
+            return Err(ProviderError::MissingApiKey(self.name.clone()));
+        };
+
+        std::env::var(env_name).map_err(|_| ProviderError::MissingApiKeyEnv {
+            provider: self.name.clone(),
+            env_name: env_name.clone(),
+        })
+    }
+
+    pub fn name(&self) -> &str {
+        &self.name
+    }
+
+    pub fn model(&self) -> Option<&str> {
+        self.model.as_deref()
+    }
+
+    pub fn language(&self) -> Option<&str> {
+        self.language.as_deref()
+    }
+
+    pub fn output_format(&self) -> Option<&str> {
+        self.output_format.as_deref()
+    }
+
+    pub fn mode(&self) -> Option<&str> {
+        self.mode.as_deref()
+    }
+
+    pub fn smart_format(&self) -> Option<bool> {
+        self.smart_format
+    }
+
+    pub fn punctuate(&self) -> Option<bool> {
+        self.punctuate
+    }
+
+    fn supports_modality(&self, modality: Modality) -> bool {
+        match modality {
+            Modality::Stt => matches!(self.provider_type, ProviderType::DeepgramStt),
+            Modality::Tts => matches!(
+                self.provider_type,
+                ProviderType::ElevenlabsTts | ProviderType::GiggyTts
+            ),
+        }
+    }
+
+    fn descriptor(&self) -> ProviderDescriptor {
+        ProviderDescriptor {
+            name: self.name.clone(),
+            provider_type: self.provider_type.clone(),
+            supports_stt: self.supports_modality(Modality::Stt),
+            supports_tts: self.supports_modality(Modality::Tts),
+            base_url: None,
+            tags: self.tags.clone(),
+        }
+    }
+}
+
+pub fn build_provider_adapters(
+    config: &VoicemuxConfig,
+) -> Result<BTreeMap<String, ProviderAdapter>, ProviderError> {
+    config
+        .providers
+        .iter()
+        .map(|(name, provider)| {
+            ProviderAdapter::from_config(name, provider).map(|adapter| (name.clone(), adapter))
+        })
+        .collect()
+}
+
+pub fn provider_descriptors_from_adapters(
+    adapters: &BTreeMap<String, ProviderAdapter>,
+) -> Vec<ProviderDescriptor> {
+    adapters.values().map(ProviderAdapter::descriptor).collect()
+}
+
+fn normalize_base_url(base_url: &str) -> String {
+    base_url.trim_end_matches('/').to_string()
+}
+
+#[derive(Debug, thiserror::Error)]
+pub enum ProviderError {
+    #[error("provider '{0}' requires base_url")]
+    MissingBaseUrl(String),
+    #[error("provider '{0}' requires api_key or api_key_env")]
+    MissingApiKey(String),
+    #[error("provider '{provider}' requires environment variable '{env_name}'")]
+    MissingApiKeyEnv { provider: String, env_name: String },
+    #[error("provider '{provider}' does not support passthrough endpoint '{endpoint}'")]
+    UnsupportedPassthrough {
+        provider: String,
+        endpoint: &'static str,
+    },
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::config::VoicemuxConfig;
+
+    fn example_config() -> VoicemuxConfig {
+        VoicemuxConfig::from_yaml(include_str!("../examples/voicemux.yaml"))
+            .expect("example config should parse")
+    }
+
+    #[test]
+    fn builds_adapters_from_example_config() {
+        let config = example_config();
+        let adapters = build_provider_adapters(&config).expect("adapters should build");
+
+        assert_eq!(adapters.len(), config.providers.len());
+        assert!(adapters["speaches"].supports_modality(Modality::Stt));
+        assert!(adapters["speaches"].supports_modality(Modality::Tts));
+        assert!(adapters["deepgram"].supports_modality(Modality::Stt));
+        assert!(!adapters["deepgram"].supports_modality(Modality::Tts));
+        assert!(!adapters["local_kokoro"].supports_modality(Modality::Stt));
+        assert!(adapters["local_kokoro"].supports_modality(Modality::Tts));
+    }
+
+    #[test]
+    fn configures_giggy_as_a_native_tts_provider() {
+        let config = VoicemuxConfig::from_yaml(
+            r#"
+active_profile: test
+profiles:
+  test:
+    stt: [local_whisper]
+    tts: [giggy]
+providers:
+  local_whisper:
+    type: openai_stt
+    base_url: http://127.0.0.1:2022/v1
+  giggy:
+    type: giggy_tts
+    api_key_env: GIGGY_API_KEY
+    model: giggyspeech
+    mode: streaming
+    output_format: pcm_24000
+aliases:
+  voices:
+    assistant:
+      giggy: 00000000-0000-4000-8000-000000000001
+"#,
+        )
+        .expect("Giggy config should parse and validate");
+        let adapters = build_provider_adapters(&config).expect("Giggy adapter should build");
+        let giggy = &adapters["giggy"];
+
+        assert!(giggy.supports_modality(Modality::Tts));
+        assert!(!giggy.supports_modality(Modality::Stt));
+        assert_eq!(giggy.descriptor().provider_type, ProviderType::GiggyTts);
+        let ProviderAdapter::GiggyTts(native) = giggy else {
+            panic!("expected Giggy native adapter");
+        };
+        assert_eq!(native.mode(), Some("streaming"));
+        assert_eq!(native.model(), Some("giggyspeech"));
+        assert_eq!(native.output_format(), Some("pcm_24000"));
+    }
+
+    #[test]
+    fn returns_provider_descriptors() {
+        let config = example_config();
+        let adapters = build_provider_adapters(&config).expect("adapters should build");
+        let descriptors = provider_descriptors_from_adapters(&adapters);
+        let speaches = descriptors
+            .iter()
+            .find(|provider| provider.name == "speaches")
+            .expect("speaches descriptor should exist");
+
+        assert_eq!(speaches.provider_type, ProviderType::OpenaiAudio);
+        assert!(speaches.supports_stt);
+        assert!(speaches.supports_tts);
+        assert_eq!(
+            speaches.base_url.as_deref(),
+            Some("http://127.0.0.1:8000/v1")
+        );
+    }
+
+    #[test]
+    fn rejects_openai_provider_without_base_url() {
+        let yaml = r#"
+active_profile: local
+profiles:
+  local:
+    stt: [broken]
+    tts: [broken]
+providers:
+  broken:
+    type: openai_audio
+"#;
+
+        let config = VoicemuxConfig::from_yaml(yaml).expect("config shape should parse");
+        let error = build_provider_adapters(&config).expect_err("adapter should fail");
+
+        assert!(matches!(error, ProviderError::MissingBaseUrl(provider) if provider == "broken"));
+    }
+
+    #[test]
+    fn builds_openai_speech_endpoint() {
+        let config = example_config();
+        let adapters = build_provider_adapters(&config).expect("adapters should build");
+        let endpoint = adapters["local_kokoro"]
+            .openai_audio_speech_endpoint()
+            .expect("speech endpoint should build");
+
+        assert_eq!(endpoint.url, "http://127.0.0.1:8880/v1/audio/speech");
+        assert_eq!(
+            endpoint.authorization.as_deref(),
+            Some("Bearer not-needed-but-openai-sdks-require-a-value")
+        );
+    }
+
+    #[test]
+    fn rejects_native_speech_passthrough() {
+        let config = example_config();
+        let adapters = build_provider_adapters(&config).expect("adapters should build");
+        let error = adapters["elevenlabs"]
+            .openai_audio_speech_endpoint()
+            .expect_err("native endpoint should not build yet");
+
+        assert!(matches!(
+            error,
+            ProviderError::UnsupportedPassthrough { provider, endpoint }
+                if provider == "elevenlabs" && endpoint == "/v1/audio/speech"
+        ));
+    }
+
+    #[test]
+    fn builds_openai_transcriptions_endpoint() {
+        let config = example_config();
+        let adapters = build_provider_adapters(&config).expect("adapters should build");
+        let endpoint = adapters["local_whisper"]
+            .openai_audio_transcriptions_endpoint()
+            .expect("transcriptions endpoint should build");
+
+        assert_eq!(
+            endpoint.url,
+            "http://127.0.0.1:2022/v1/audio/transcriptions"
+        );
+        assert_eq!(
+            endpoint.authorization.as_deref(),
+            Some("Bearer not-needed-but-openai-sdks-require-a-value")
+        );
+    }
+
+    #[test]
+    fn rejects_native_transcriptions_passthrough() {
+        let config = example_config();
+        let adapters = build_provider_adapters(&config).expect("adapters should build");
+        let error = adapters["deepgram"]
+            .openai_audio_transcriptions_endpoint()
+            .expect_err("native endpoint should not build yet");
+
+        assert!(matches!(
+            error,
+            ProviderError::UnsupportedPassthrough { provider, endpoint }
+                if provider == "deepgram" && endpoint == "/v1/audio/transcriptions"
+        ));
+    }
+}
