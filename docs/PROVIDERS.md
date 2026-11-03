@@ -124,6 +124,7 @@ Initial native adapters:
 
 - `deepgram_stt`
 - `elevenlabs_tts`
+- `giggy_tts`
 
 Deepgram STT shape:
 
@@ -157,6 +158,29 @@ Why these first:
 - ElevenLabs is a strong TTS default for voice quality.
 - They are common choices in voice stacks.
 - Existing local Python proxy experiments already clarify the translation shape.
+
+Giggy.ai TTS is configured as a native OpenAI-edge adapter:
+
+```yaml
+providers:
+  giggy:
+    type: giggy_tts
+    api_key_env: GIGGY_API_KEY
+    mode: fast # fast or batch
+    output_format: mp3_24000_160
+    model: giggyspeech # optional compatibility field
+
+profiles:
+  hybrid:
+    tts: [giggy, local_kokoro]
+
+aliases:
+  voices:
+    assistant:
+      giggy: "YOUR_GIGGY_VOICE_UUID"
+```
+
+Giggy requests use `xi-api-key` authentication and send `text`, `voice_id`, `mode`, and `output_format` to `/v1/text-to-speech`. The supported output is `mp3_24000_160`; OpenAI `response_format: mp3` selects it. The model compatibility field is sent only when supplied through the route or provider config. Set `mode` to `fast` or `batch` (defaults to `fast`).
 
 Rule:
 

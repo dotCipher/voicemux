@@ -82,12 +82,87 @@ async fn proxy_speech_attempt(
         ProviderAdapter::ElevenlabsTts(adapter) => {
             proxy_elevenlabs_speech(state, adapter, plan, request).await
         }
+        ProviderAdapter::GiggyTts(adapter) => {
+            proxy_giggy_speech(state, adapter, plan, request).await
+        }
         ProviderAdapter::DeepgramStt(adapter) => Err(ProviderError::UnsupportedPassthrough {
             provider: adapter.name().to_string(),
             endpoint: "/v1/audio/speech",
         }
         .into()),
     }
+}
+
+async fn proxy_giggy_speech(
+    state: &AppState,
+    adapter: &NativeAdapter,
+    plan: &RoutePlan,
+    request: SpeechRequest,
+) -> Result<Response, OpenAiProxyError> {
+    let text = speech_input_text(request.input)?;
+    let voice_id = plan
+        .resolved_voice
+        .as_deref()
+        .ok_or_else(|| OpenAiProxyError::MissingVoice(adapter.name().to_string()))?;
+    let output_format =
+        giggy_output_format(request.response_format.as_deref(), adapter.output_format())?;
+    let mode = giggy_mode(adapter.mode())?;
+    let model_id = plan.resolved_model.as_deref().or_else(|| adapter.model());
+    let body = giggy_request_body(&text, voice_id, mode, output_format, model_id);
+    let upstream_response = state
+        .client
+        .post("https://api.giggy.ai/v1/text-to-speech")
+        .header("xi-api-key", adapter.api_key()?)
+        .json(&body)
+        .send()
+        .await?;
+    response_from_upstream(upstream_response, "audio/mpeg", plan).await
+}
+
+fn giggy_output_format<'a>(
+    requested: Option<&'a str>,
+    configured: Option<&'a str>,
+) -> Result<&'a str, OpenAiProxyError> {
+    let requested = requested.unwrap_or("mp3");
+    if !matches!(requested, "mp3" | "mp3_24000_160") {
+        return Err(OpenAiProxyError::UnsupportedOutputFormat(
+            requested.to_string(),
+        ));
+    }
+    let configured = configured.unwrap_or("mp3_24000_160");
+    if configured != "mp3_24000_160" {
+        return Err(OpenAiProxyError::UnsupportedOutputFormat(
+            configured.to_string(),
+        ));
+    }
+    Ok(configured)
+}
+
+fn giggy_mode(configured: Option<&str>) -> Result<&str, OpenAiProxyError> {
+    let mode = configured.unwrap_or("fast");
+    if !matches!(mode, "fast" | "batch") {
+        return Err(OpenAiProxyError::InvalidGiggyMode(mode.to_string()));
+    }
+    Ok(mode)
+}
+
+fn giggy_request_body(
+    text: &str,
+    voice_id: &str,
+    mode: &str,
+    output_format: &str,
+    model_id: Option<&str>,
+) -> serde_json::Value {
+    let mut body = serde_json::json!({
+        "text": text,
+        "voice_id": voice_id,
+        "mode": mode,
+        "output_format": output_format,
+    });
+    if let Some(model_id) = model_id {
+        body["model_id"] = serde_json::Value::String(model_id.to_string());
+    }
+    body
 }
 
 async fn proxy_openai_speech(
@@ -374,11 +449,13 @@ async fn proxy_transcription_attempt(
         ProviderAdapter::DeepgramStt(adapter) => {
             proxy_deepgram_transcription(state, adapter, plan, request).await
         }
-        ProviderAdapter::ElevenlabsTts(adapter) => Err(ProviderError::UnsupportedPassthrough {
-            provider: adapter.name().to_string(),
-            endpoint: "/v1/audio/transcriptions",
+        ProviderAdapter::ElevenlabsTts(adapter) | ProviderAdapter::GiggyTts(adapter) => {
+            Err(ProviderError::UnsupportedPassthrough {
+                provider: adapter.name().to_string(),
+                endpoint: "/v1/audio/transcriptions",
+            }
+            .into())
         }
-        .into()),
     }
 }
 
@@ -402,6 +479,8 @@ fn should_fallback_error(state: &AppState, error: &OpenAiProxyError) -> bool {
         | OpenAiProxyError::MultipartContentType(_)
         | OpenAiProxyError::InvalidSpeechInput
         | OpenAiProxyError::MissingVoice(_)
+        | OpenAiProxyError::UnsupportedOutputFormat(_)
+        | OpenAiProxyError::InvalidGiggyMode(_)
         | OpenAiProxyError::MissingTranscriptionFile => false,
     }
 }
@@ -610,6 +689,10 @@ pub enum OpenAiProxyError {
     InvalidSpeechInput,
     #[error("speech request must include a resolved voice for provider '{0}'")]
     MissingVoice(String),
+    #[error("unsupported Giggy output format '{0}'; Giggy TTS supports mp3_24000_160")]
+    UnsupportedOutputFormat(String),
+    #[error("invalid Giggy mode '{0}'; expected 'fast' or 'batch'")]
+    InvalidGiggyMode(String),
     #[error("transcription request must include a file field")]
     MissingTranscriptionFile,
 }
@@ -624,6 +707,8 @@ impl OpenAiProxyError {
             | Self::MultipartContentType(_)
             | Self::InvalidSpeechInput
             | Self::MissingVoice(_)
+            | Self::UnsupportedOutputFormat(_)
+            | Self::InvalidGiggyMode(_)
             | Self::MissingTranscriptionFile => StatusCode::BAD_REQUEST,
             Self::Upstream(_) | Self::UpstreamJson(_) => StatusCode::BAD_GATEWAY,
         }
@@ -637,7 +722,10 @@ impl OpenAiProxyError {
             Self::Multipart(_)
             | Self::MissingMultipartFieldName
             | Self::MultipartContentType(_) => "invalid_multipart_request",
-            Self::InvalidSpeechInput | Self::MissingVoice(_) => "invalid_speech_request",
+            Self::InvalidSpeechInput
+            | Self::MissingVoice(_)
+            | Self::UnsupportedOutputFormat(_)
+            | Self::InvalidGiggyMode(_) => "invalid_speech_request",
             Self::MissingTranscriptionFile => "invalid_transcription_request",
         }
     }
@@ -795,6 +883,58 @@ mod tests {
         let error = OpenAiProxyError::Provider(ProviderError::MissingApiKey("elevenlabs".into()));
 
         assert!(should_fallback_error(&state, &error));
+    }
+
+    #[test]
+    fn giggy_defaults_and_validates_mode_and_output_format() {
+        assert_eq!(giggy_output_format(None, None).unwrap(), "mp3_24000_160");
+        assert_eq!(
+            giggy_output_format(Some("mp3"), None).unwrap(),
+            "mp3_24000_160"
+        );
+        assert_eq!(
+            giggy_output_format(Some("mp3_24000_160"), None).unwrap(),
+            "mp3_24000_160"
+        );
+        assert_eq!(giggy_mode(None).unwrap(), "fast");
+        assert_eq!(giggy_mode(Some("batch")).unwrap(), "batch");
+        assert!(matches!(
+            giggy_output_format(Some("wav"), None),
+            Err(OpenAiProxyError::UnsupportedOutputFormat(_))
+        ));
+        assert!(matches!(
+            giggy_output_format(None, Some("pcm_24000")),
+            Err(OpenAiProxyError::UnsupportedOutputFormat(_))
+        ));
+        assert!(matches!(
+            giggy_mode(Some("realtime")),
+            Err(OpenAiProxyError::InvalidGiggyMode(_))
+        ));
+    }
+
+    #[test]
+    fn builds_giggy_native_request_contract() {
+        let body = giggy_request_body(
+            "Hello world",
+            "00000000-0000-4000-8000-000000000001",
+            "fast",
+            "mp3_24000_160",
+            None,
+        );
+        assert_eq!(body["text"], "Hello world");
+        assert_eq!(body["voice_id"], "00000000-0000-4000-8000-000000000001");
+        assert_eq!(body["mode"], "fast");
+        assert_eq!(body["output_format"], "mp3_24000_160");
+        assert!(body.get("model_id").is_none());
+
+        let compat_body = giggy_request_body(
+            "Hi",
+            "voice-id",
+            "batch",
+            "mp3_24000_160",
+            Some("giggyspeech"),
+        );
+        assert_eq!(compat_body["model_id"], "giggyspeech");
     }
 
     #[test]

@@ -128,6 +128,8 @@ pub struct ProviderConfig {
     #[serde(default)]
     pub output_format: Option<String>,
     #[serde(default)]
+    pub mode: Option<String>,
+    #[serde(default)]
     pub timeout_seconds: Option<u64>,
     #[serde(default)]
     pub capabilities: Vec<Capability>,
@@ -148,7 +150,10 @@ impl ProviderConfig {
             ),
             Modality::Tts => matches!(
                 self.provider_type,
-                ProviderType::OpenaiAudio | ProviderType::OpenaiTts | ProviderType::ElevenlabsTts
+                ProviderType::OpenaiAudio
+                    | ProviderType::OpenaiTts
+                    | ProviderType::ElevenlabsTts
+                    | ProviderType::GiggyTts
             ),
         }
     }
@@ -162,6 +167,7 @@ pub enum ProviderType {
     OpenaiTts,
     DeepgramStt,
     ElevenlabsTts,
+    GiggyTts,
 }
 
 #[derive(Debug, Clone, Deserialize, PartialEq, Eq)]
