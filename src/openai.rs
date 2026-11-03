@@ -726,14 +726,17 @@ fn is_giggy_streaming_wav(bytes: &[u8]) -> bool {
         return false;
     }
     let riff_size = u32::from_le_bytes(bytes[4..8].try_into().unwrap()) as usize;
-    if riff_size + 8 > bytes.len() {
+    let Some(riff_end) = riff_size.checked_add(8) else {
+        return false;
+    };
+    if riff_end != bytes.len() || riff_end < 12 {
         return false;
     }
 
     let mut cursor = 12usize;
     let mut valid_format = false;
     let mut audio_bytes = None;
-    while cursor.saturating_add(8) <= bytes.len() {
+    while cursor.saturating_add(8) <= riff_end {
         let id = &bytes[cursor..cursor + 4];
         let chunk_len =
             u32::from_le_bytes(bytes[cursor + 4..cursor + 8].try_into().unwrap()) as usize;
@@ -741,7 +744,7 @@ fn is_giggy_streaming_wav(bytes: &[u8]) -> bool {
         let Some(end) = start.checked_add(chunk_len) else {
             return false;
         };
-        if end > bytes.len() {
+        if end > riff_end {
             return false;
         }
 
@@ -763,10 +766,18 @@ fn is_giggy_streaming_wav(bytes: &[u8]) -> bool {
             audio_bytes = Some(chunk_len);
         }
 
-        cursor = end + (chunk_len % 2);
+        let Some(next_chunk) = end.checked_add(chunk_len % 2) else {
+            return false;
+        };
+        if next_chunk > riff_end {
+            return false;
+        }
+        cursor = next_chunk;
     }
 
-    valid_format && audio_bytes.is_some_and(|length| length >= 16_000 && length % 2 == 0)
+    cursor == riff_end
+        && valid_format
+        && audio_bytes.is_some_and(|length| length >= 16_000 && length % 2 == 0)
 }
 
 fn upstream_headers(
@@ -1132,6 +1143,9 @@ mod tests {
         let mut inconsistent_riff_size = pcm16_wav(16_000, 1, 16, 8_000);
         inconsistent_riff_size[4..8].copy_from_slice(&u32::MAX.to_le_bytes());
         assert!(!is_giggy_streaming_wav(&inconsistent_riff_size));
+        let mut chunks_outside_riff_boundary = pcm16_wav(16_000, 1, 16, 8_000);
+        chunks_outside_riff_boundary[4..8].copy_from_slice(&40u32.to_le_bytes());
+        assert!(!is_giggy_streaming_wav(&chunks_outside_riff_boundary));
         let mut odd_pcm = pcm16_wav(16_000, 1, 16, 8_000);
         odd_pcm.push(0);
         let riff_len = (odd_pcm.len() - 8) as u32;
