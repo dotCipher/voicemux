@@ -1,10 +1,14 @@
+use axum::body::{Body, Bytes};
 use axum::extract::Multipart;
 use axum::http::{header, HeaderMap, HeaderValue, StatusCode};
 use axum::response::{IntoResponse, Response};
+use futures_util::{stream, Stream, StreamExt};
 use reqwest::multipart::{Form, Part};
 use reqwest::Url;
 use serde::{Deserialize, Serialize};
 use serde_json::Value;
+use std::pin::Pin;
+use std::time::Duration;
 
 use crate::config::Modality;
 use crate::providers::{NativeAdapter, ProviderAdapter, ProviderError};
@@ -82,12 +86,87 @@ async fn proxy_speech_attempt(
         ProviderAdapter::ElevenlabsTts(adapter) => {
             proxy_elevenlabs_speech(state, adapter, plan, request).await
         }
+        ProviderAdapter::GiggyTts(adapter) => {
+            proxy_giggy_speech(state, adapter, plan, request).await
+        }
         ProviderAdapter::DeepgramStt(adapter) => Err(ProviderError::UnsupportedPassthrough {
             provider: adapter.name().to_string(),
             endpoint: "/v1/audio/speech",
         }
         .into()),
     }
+}
+
+async fn proxy_giggy_speech(
+    state: &AppState,
+    adapter: &NativeAdapter,
+    plan: &RoutePlan,
+    request: SpeechRequest,
+) -> Result<Response, OpenAiProxyError> {
+    let text = speech_input_text(request.input)?;
+    let voice_id = plan
+        .resolved_voice
+        .as_deref()
+        .ok_or_else(|| OpenAiProxyError::MissingVoice(adapter.name().to_string()))?;
+    let output_format =
+        giggy_output_format(request.response_format.as_deref(), adapter.output_format())?;
+    let mode = giggy_mode(adapter.mode())?;
+    let model_id = plan.resolved_model.as_deref().or_else(|| adapter.model());
+    let body = giggy_request_body(&text, voice_id, mode, output_format, model_id);
+    let upstream_response = state
+        .giggy_client
+        .post("https://api.giggy.ai/v1/text-to-speech")
+        .header("xi-api-key", adapter.api_key()?)
+        .json(&body)
+        .send()
+        .await?;
+    response_from_upstream_stream(upstream_response, "audio/pcm;rate=24000", plan).await
+}
+
+fn giggy_output_format<'a>(
+    requested: Option<&'a str>,
+    configured: Option<&'a str>,
+) -> Result<&'a str, OpenAiProxyError> {
+    let requested = requested.unwrap_or("pcm");
+    if !matches!(requested, "pcm" | "pcm_24000") {
+        return Err(OpenAiProxyError::UnsupportedOutputFormat(
+            requested.to_string(),
+        ));
+    }
+    let configured = configured.unwrap_or("pcm_24000");
+    if configured != "pcm_24000" {
+        return Err(OpenAiProxyError::UnsupportedOutputFormat(
+            configured.to_string(),
+        ));
+    }
+    Ok(configured)
+}
+
+fn giggy_mode(configured: Option<&str>) -> Result<&str, OpenAiProxyError> {
+    let mode = configured.unwrap_or("streaming");
+    if mode != "streaming" {
+        return Err(OpenAiProxyError::InvalidGiggyMode(mode.to_string()));
+    }
+    Ok(mode)
+}
+
+fn giggy_request_body(
+    text: &str,
+    voice_id: &str,
+    mode: &str,
+    output_format: &str,
+    model_id: Option<&str>,
+) -> serde_json::Value {
+    let mut body = serde_json::json!({
+        "text": text,
+        "voice_id": voice_id,
+        "mode": mode,
+        "output_format": output_format,
+    });
+    if let Some(model_id) = model_id {
+        body["model_id"] = serde_json::Value::String(model_id.to_string());
+    }
+    body
 }
 
 async fn proxy_openai_speech(
@@ -212,6 +291,52 @@ fn speech_input_text(input: Value) -> Result<String, OpenAiProxyError> {
         Value::String(text) => Ok(text),
         _ => Err(OpenAiProxyError::InvalidSpeechInput),
     }
+}
+
+async fn response_from_upstream_stream(
+    upstream_response: reqwest::Response,
+    fallback_content_type: &'static str,
+    plan: &RoutePlan,
+) -> Result<Response, OpenAiProxyError> {
+    let status = upstream_response.status();
+    if !status.is_success() {
+        return response_from_upstream(upstream_response, fallback_content_type, plan).await;
+    }
+
+    let content_type = upstream_response
+        .headers()
+        .get(header::CONTENT_TYPE.as_str())
+        .cloned();
+    let content_type_text = content_type
+        .as_ref()
+        .and_then(|value| value.to_str().ok())
+        .unwrap_or("missing");
+    if !is_giggy_pcm_content_type(content_type_text) {
+        return Err(OpenAiProxyError::UnexpectedUpstreamContentType(
+            content_type_text.to_string(),
+        ));
+    }
+    let mut headers = upstream_headers(content_type, fallback_content_type);
+    insert_route_headers(&mut headers, plan);
+    let body = Body::from_stream(upstream_response.bytes_stream());
+
+    Ok((
+        StatusCode::from_u16(status.as_u16()).unwrap_or(StatusCode::BAD_GATEWAY),
+        headers,
+        body,
+    )
+        .into_response())
+}
+
+fn is_giggy_pcm_content_type(content_type: &str) -> bool {
+    let mut parts = content_type.split(';');
+    let media_type = parts.next().unwrap_or_default().trim();
+    let rates: Vec<_> = parts
+        .filter_map(|parameter| parameter.trim().split_once('='))
+        .filter(|(name, _)| name.trim().eq_ignore_ascii_case("rate"))
+        .map(|(_, value)| value.trim())
+        .collect();
+    media_type.eq_ignore_ascii_case("audio/pcm") && rates.len() == 1 && rates[0] == "24000"
 }
 
 async fn response_from_upstream(
@@ -374,6 +499,9 @@ async fn proxy_transcription_attempt(
         ProviderAdapter::DeepgramStt(adapter) => {
             proxy_deepgram_transcription(state, adapter, plan, request).await
         }
+        ProviderAdapter::GiggyTts(adapter) => {
+            proxy_giggy_transcription(state, adapter, plan, request).await
+        }
         ProviderAdapter::ElevenlabsTts(adapter) => Err(ProviderError::UnsupportedPassthrough {
             provider: adapter.name().to_string(),
             endpoint: "/v1/audio/transcriptions",
@@ -402,7 +530,20 @@ fn should_fallback_error(state: &AppState, error: &OpenAiProxyError) -> bool {
         | OpenAiProxyError::MultipartContentType(_)
         | OpenAiProxyError::InvalidSpeechInput
         | OpenAiProxyError::MissingVoice(_)
-        | OpenAiProxyError::MissingTranscriptionFile => false,
+        | OpenAiProxyError::UnsupportedOutputFormat(_)
+        | OpenAiProxyError::InvalidGiggyMode(_)
+        | OpenAiProxyError::MissingTranscriptionFile
+        | OpenAiProxyError::GiggyTranscriptionRequiresStreaming
+        | OpenAiProxyError::InvalidGiggyTranscriptionAudio => false,
+        OpenAiProxyError::UnexpectedUpstreamContentType(_)
+        | OpenAiProxyError::MissingGiggyGeneration
+        | OpenAiProxyError::InvalidGiggyGeneration
+        | OpenAiProxyError::InvalidGiggyTranscriptEvent
+        | OpenAiProxyError::IncompleteGiggyTranscriptEvent
+        | OpenAiProxyError::GiggyTranscriptionFailed
+        | OpenAiProxyError::GiggyCanonicalResultUnavailable
+        | OpenAiProxyError::InvalidGiggyTranscriptUrl
+        | OpenAiProxyError::InvalidGiggyCanonicalTranscript => true,
     }
 }
 
@@ -515,6 +656,442 @@ async fn proxy_deepgram_transcription(
         .into_response())
 }
 
+async fn proxy_giggy_transcription(
+    state: &AppState,
+    adapter: &NativeAdapter,
+    plan: &RoutePlan,
+    request: TranscriptionRequest,
+) -> Result<Response, OpenAiProxyError> {
+    if !request
+        .text_field("stream")
+        .is_some_and(|value| value.eq_ignore_ascii_case("true"))
+    {
+        return Err(OpenAiProxyError::GiggyTranscriptionRequiresStreaming);
+    }
+
+    let file = request
+        .file_field()
+        .ok_or(OpenAiProxyError::MissingTranscriptionFile)?;
+    if !is_giggy_streaming_wav(&file.bytes) {
+        return Err(OpenAiProxyError::InvalidGiggyTranscriptionAudio);
+    }
+
+    let upstream_response = state
+        .giggy_client
+        .post(giggy_transcription_url())
+        .query(&[("mode", "streaming")])
+        .header("xi-api-key", adapter.api_key()?)
+        .header(header::CONTENT_TYPE, "audio/wav")
+        .body(file.bytes.clone())
+        .send()
+        .await?;
+    response_from_upstream_event_stream(
+        upstream_response,
+        plan,
+        state.giggy_client.clone(),
+        adapter.api_key()?.to_string(),
+        giggy_api_base(),
+        false,
+    )
+    .await
+}
+
+async fn response_from_upstream_event_stream(
+    upstream_response: reqwest::Response,
+    plan: &RoutePlan,
+    client: reqwest::Client,
+    api_key: String,
+    api_base: Url,
+    allow_http_artifact: bool,
+) -> Result<Response, OpenAiProxyError> {
+    let status = upstream_response.status();
+    if !status.is_success() {
+        return response_from_upstream(upstream_response, "application/json", plan).await;
+    }
+
+    let content_type = upstream_response
+        .headers()
+        .get(header::CONTENT_TYPE.as_str())
+        .cloned();
+    let content_type_text = content_type
+        .as_ref()
+        .and_then(|value| value.to_str().ok())
+        .unwrap_or("missing");
+    let media_type = content_type_text
+        .split(';')
+        .next()
+        .unwrap_or_default()
+        .trim();
+    if !media_type.eq_ignore_ascii_case("text/event-stream") {
+        return Err(OpenAiProxyError::UnexpectedUpstreamContentType(
+            content_type_text.to_string(),
+        ));
+    }
+
+    let body = giggy_upload_event_body(
+        upstream_response,
+        client,
+        api_key,
+        api_base,
+        allow_http_artifact,
+    );
+    let mut headers = upstream_headers(content_type, "text/event-stream");
+    insert_route_headers(&mut headers, plan);
+    Ok((
+        StatusCode::from_u16(status.as_u16()).unwrap_or(StatusCode::BAD_GATEWAY),
+        headers,
+        body,
+    )
+        .into_response())
+}
+
+fn giggy_upload_event_body(
+    upstream_response: reqwest::Response,
+    client: reqwest::Client,
+    api_key: String,
+    api_base: Url,
+    allow_http_artifact: bool,
+) -> Body {
+    Body::from_stream(stream::unfold(
+        GiggyUploadForwardState {
+            upstream: Box::pin(upstream_response.bytes_stream()),
+            buffer: Vec::new(),
+            generation_uuid: None,
+            client,
+            api_key,
+            api_base,
+            allow_http_artifact,
+            finished: false,
+        },
+        |mut state| async move {
+            let item = state.next_item().await?;
+            Some((item, state))
+        },
+    ))
+}
+
+type GiggyUploadBytes = Pin<Box<dyn Stream<Item = Result<Bytes, reqwest::Error>> + Send>>;
+
+struct GiggyUploadForwardState {
+    upstream: GiggyUploadBytes,
+    buffer: Vec<u8>,
+    generation_uuid: Option<String>,
+    client: reqwest::Client,
+    api_key: String,
+    api_base: Url,
+    allow_http_artifact: bool,
+    finished: bool,
+}
+
+impl GiggyUploadForwardState {
+    async fn next_item(&mut self) -> Option<Result<Bytes, OpenAiProxyError>> {
+        if self.finished {
+            return None;
+        }
+
+        loop {
+            if let Some(frame) = take_sse_frame(&mut self.buffer) {
+                match inspect_giggy_upload_frame(&frame, &mut self.generation_uuid) {
+                    Ok(UploadFrameDisposition::Forward) => return Some(Ok(Bytes::from(frame))),
+                    Ok(UploadFrameDisposition::Suppress) => continue,
+                    Err(error) => {
+                        self.finished = true;
+                        return Some(Err(error));
+                    }
+                }
+            }
+
+            match self.upstream.next().await {
+                Some(Ok(chunk)) => self.buffer.extend_from_slice(&chunk),
+                Some(Err(error)) => {
+                    self.finished = true;
+                    return Some(Err(OpenAiProxyError::Upstream(error)));
+                }
+                None => {
+                    if !self.buffer.is_empty() {
+                        self.finished = true;
+                        return Some(Err(OpenAiProxyError::IncompleteGiggyTranscriptEvent));
+                    }
+                    let Some(generation_uuid) = self.generation_uuid.as_deref() else {
+                        self.finished = true;
+                        return Some(Err(OpenAiProxyError::MissingGiggyGeneration));
+                    };
+                    match fetch_giggy_canonical_text(
+                        &self.client,
+                        &self.api_key,
+                        generation_uuid,
+                        &self.api_base,
+                        self.allow_http_artifact,
+                    )
+                    .await
+                    {
+                        Ok(text) => {
+                            self.finished = true;
+                            return Some(Ok(Bytes::from(canonical_giggy_events(
+                                generation_uuid,
+                                &text,
+                            ))));
+                        }
+                        Err(error) => {
+                            self.finished = true;
+                            return Some(Err(error));
+                        }
+                    }
+                }
+            }
+        }
+    }
+}
+
+enum UploadFrameDisposition {
+    Forward,
+    Suppress,
+}
+
+fn take_sse_frame(buffer: &mut Vec<u8>) -> Option<Vec<u8>> {
+    let lf = buffer.windows(2).position(|window| window == b"\n\n");
+    let crlf = buffer.windows(4).position(|window| window == b"\r\n\r\n");
+    let (start, length) = match (lf, crlf) {
+        (Some(lf), Some(crlf)) if crlf < lf => (crlf, 4),
+        (Some(lf), _) => (lf, 2),
+        (None, Some(crlf)) => (crlf, 4),
+        (None, None) => return None,
+    };
+    Some(buffer.drain(..start + length).collect())
+}
+
+fn inspect_giggy_upload_frame(
+    frame: &[u8],
+    generation_uuid: &mut Option<String>,
+) -> Result<UploadFrameDisposition, OpenAiProxyError> {
+    let text =
+        std::str::from_utf8(frame).map_err(|_| OpenAiProxyError::InvalidGiggyTranscriptEvent)?;
+    let mut event = String::new();
+    let mut data = Vec::new();
+    for line in text.lines() {
+        if let Some(value) = line.strip_prefix("event:") {
+            event = value.trim().to_string();
+        } else if let Some(value) = line.strip_prefix("data:") {
+            data.push(value.trim_start().to_string());
+        }
+    }
+    if data.is_empty() {
+        return Ok(UploadFrameDisposition::Forward);
+    }
+    if event.is_empty() {
+        return Err(OpenAiProxyError::InvalidGiggyTranscriptEvent);
+    }
+    let payload: Value = serde_json::from_str(&data.join("\n"))?;
+    match event.as_str() {
+        "generation_created" => {
+            if generation_uuid.is_some() {
+                return Err(OpenAiProxyError::InvalidGiggyGeneration);
+            }
+            let id = payload
+                .get("generation_uuid")
+                .or_else(|| payload.pointer("/generation/generation_uuid"))
+                .and_then(Value::as_str)
+                .filter(|value| is_canonical_uuid(value))
+                .ok_or(OpenAiProxyError::InvalidGiggyGeneration)?;
+            *generation_uuid = Some(id.to_string());
+            Ok(UploadFrameDisposition::Forward)
+        }
+        "transcript_chunk" => {
+            if !payload.get("text").is_some_and(Value::is_string)
+                || payload.get("replace") != Some(&Value::Bool(true))
+            {
+                return Err(OpenAiProxyError::InvalidGiggyTranscriptEvent);
+            }
+            Ok(UploadFrameDisposition::Forward)
+        }
+        "generation_updated" => {
+            if let Some(id) = payload
+                .get("generation_uuid")
+                .or_else(|| payload.pointer("/generation/generation_uuid"))
+                .and_then(Value::as_str)
+            {
+                if generation_uuid.as_deref() != Some(id) {
+                    return Err(OpenAiProxyError::InvalidGiggyGeneration);
+                }
+            }
+            let status = payload
+                .get("status")
+                .or_else(|| payload.pointer("/generation/status"))
+                .and_then(Value::as_str);
+            if matches!(status, Some("failed" | "cancelled" | "admission_failed")) {
+                return Err(OpenAiProxyError::GiggyTranscriptionFailed);
+            }
+            if status == Some("completed") {
+                return Ok(UploadFrameDisposition::Suppress);
+            }
+            Ok(UploadFrameDisposition::Forward)
+        }
+        // `stream()`'s upload event contract also permits the generic ready event;
+        // it has no authority to declare a canonical result.
+        "microphone_ready" => Ok(UploadFrameDisposition::Forward),
+        _ => Err(OpenAiProxyError::InvalidGiggyTranscriptEvent),
+    }
+}
+
+fn is_canonical_uuid(value: &str) -> bool {
+    value.len() == 36
+        && value.bytes().enumerate().all(|(index, byte)| {
+            if matches!(index, 8 | 13 | 18 | 23) {
+                byte == b'-'
+            } else {
+                byte.is_ascii_hexdigit()
+            }
+        })
+}
+
+async fn fetch_giggy_canonical_text(
+    client: &reqwest::Client,
+    api_key: &str,
+    generation_uuid: &str,
+    api_base: &Url,
+    allow_http_artifact: bool,
+) -> Result<String, OpenAiProxyError> {
+    if !is_canonical_uuid(generation_uuid) {
+        return Err(OpenAiProxyError::InvalidGiggyGeneration);
+    }
+    let deadline = std::time::Instant::now() + Duration::from_secs(30);
+    let status_url = api_base
+        .join(&format!("generations/{generation_uuid}"))
+        .map_err(|_| OpenAiProxyError::InvalidGiggyTranscriptUrl)?;
+    let status_response = client
+        .get(status_url)
+        .header("xi-api-key", api_key)
+        .timeout(Duration::from_secs(30))
+        .send()
+        .await?;
+    if !status_response.status().is_success() {
+        return Err(OpenAiProxyError::GiggyCanonicalResultUnavailable);
+    }
+    let status: Value = status_response.json().await?;
+    if status
+        .pointer("/generation/generation_uuid")
+        .and_then(Value::as_str)
+        != Some(generation_uuid)
+        || status.pointer("/generation/status").and_then(Value::as_str) != Some("completed")
+    {
+        return Err(OpenAiProxyError::GiggyCanonicalResultUnavailable);
+    }
+    let signed_url = status
+        .pointer("/generation/result/url")
+        .and_then(Value::as_str)
+        .ok_or(OpenAiProxyError::InvalidGiggyTranscriptUrl)?;
+    let url = signed_artifact_url(signed_url, allow_http_artifact)?;
+    let remaining = deadline.saturating_duration_since(std::time::Instant::now());
+    if remaining.is_zero() {
+        return Err(OpenAiProxyError::GiggyCanonicalResultUnavailable);
+    }
+    // The signed artifact request deliberately carries no provider key; redirects
+    // are disabled on this client so credentials and signed URLs cannot be replayed.
+    let artifact_response = client.get(url).timeout(remaining).send().await?;
+    if !artifact_response.status().is_success() {
+        return Err(OpenAiProxyError::GiggyCanonicalResultUnavailable);
+    }
+    let artifact: Value = artifact_response.json().await?;
+    artifact
+        .get("text")
+        .and_then(Value::as_str)
+        .map(ToOwned::to_owned)
+        .ok_or(OpenAiProxyError::InvalidGiggyCanonicalTranscript)
+}
+
+fn signed_artifact_url(value: &str, allow_http_for_test: bool) -> Result<Url, OpenAiProxyError> {
+    let url = Url::parse(value).map_err(|_| OpenAiProxyError::InvalidGiggyTranscriptUrl)?;
+    if (url.scheme() != "https" && !(allow_http_for_test && url.scheme() == "http"))
+        || url.host_str().is_none()
+        || !url.username().is_empty()
+        || url.password().is_some()
+        || url.fragment().is_some()
+    {
+        return Err(OpenAiProxyError::InvalidGiggyTranscriptUrl);
+    }
+    Ok(url)
+}
+
+fn giggy_api_base() -> Url {
+    Url::parse("https://api.giggy.ai/v1/").expect("static Giggy API URL should parse")
+}
+
+fn canonical_giggy_events(generation_uuid: &str, text: &str) -> Vec<u8> {
+    let preview_replacement = serde_json::json!({ "text": text, "replace": true });
+    let completed = serde_json::json!({
+        "generation_uuid": generation_uuid,
+        "status": "completed"
+    });
+    format!(
+        "event: transcript_chunk\ndata: {preview_replacement}\n\nevent: generation_updated\ndata: {completed}\n\n"
+    )
+    .into_bytes()
+}
+
+fn giggy_transcription_url() -> Url {
+    Url::parse("https://api.giggy.ai/v1/audio/transcriptions")
+        .expect("static Giggy transcription URL should parse")
+}
+
+fn is_giggy_streaming_wav(bytes: &[u8]) -> bool {
+    if bytes.len() < 44 || &bytes[0..4] != b"RIFF" || &bytes[8..12] != b"WAVE" {
+        return false;
+    }
+    let riff_size = u32::from_le_bytes(bytes[4..8].try_into().unwrap()) as usize;
+    let Some(riff_end) = riff_size.checked_add(8) else {
+        return false;
+    };
+    if riff_end != bytes.len() || riff_end < 12 {
+        return false;
+    }
+
+    let mut cursor = 12usize;
+    let mut valid_format = false;
+    let mut audio_bytes = None;
+    while cursor.saturating_add(8) <= riff_end {
+        let id = &bytes[cursor..cursor + 4];
+        let chunk_len =
+            u32::from_le_bytes(bytes[cursor + 4..cursor + 8].try_into().unwrap()) as usize;
+        let start = cursor + 8;
+        let Some(end) = start.checked_add(chunk_len) else {
+            return false;
+        };
+        if end > riff_end {
+            return false;
+        }
+
+        if id == b"fmt " && chunk_len >= 16 {
+            let format = u16::from_le_bytes(bytes[start..start + 2].try_into().unwrap());
+            let channels = u16::from_le_bytes(bytes[start + 2..start + 4].try_into().unwrap());
+            let sample_rate = u32::from_le_bytes(bytes[start + 4..start + 8].try_into().unwrap());
+            let byte_rate = u32::from_le_bytes(bytes[start + 8..start + 12].try_into().unwrap());
+            let block_align = u16::from_le_bytes(bytes[start + 12..start + 14].try_into().unwrap());
+            let bits_per_sample =
+                u16::from_le_bytes(bytes[start + 14..start + 16].try_into().unwrap());
+            valid_format = format == 1
+                && channels == 1
+                && sample_rate == 16_000
+                && byte_rate == 32_000
+                && block_align == 2
+                && bits_per_sample == 16;
+        } else if id == b"data" {
+            audio_bytes = Some(chunk_len);
+        }
+
+        let Some(next_chunk) = end.checked_add(chunk_len % 2) else {
+            return false;
+        };
+        if next_chunk > riff_end {
+            return false;
+        }
+        cursor = next_chunk;
+    }
+
+    cursor == riff_end
+        && valid_format
+        && audio_bytes.is_some_and(|length| length >= 16_000 && length % 2 == 0)
+}
+
 fn upstream_headers(
     content_type: Option<HeaderValue>,
     fallback_content_type: &'static str,
@@ -600,6 +1177,8 @@ pub enum OpenAiProxyError {
     Upstream(#[from] reqwest::Error),
     #[error("upstream response was not valid json: {0}")]
     UpstreamJson(#[from] serde_json::Error),
+    #[error("upstream returned unsupported content type '{0}'")]
+    UnexpectedUpstreamContentType(String),
     #[error("multipart request failed: {0}")]
     Multipart(#[from] axum::extract::multipart::MultipartError),
     #[error("multipart field is missing a name")]
@@ -610,8 +1189,32 @@ pub enum OpenAiProxyError {
     InvalidSpeechInput,
     #[error("speech request must include a resolved voice for provider '{0}'")]
     MissingVoice(String),
+    #[error("unsupported Giggy output format '{0}'; streaming Giggy TTS supports pcm_24000")]
+    UnsupportedOutputFormat(String),
+    #[error("invalid Giggy mode '{0}'; this provider requires 'streaming'")]
+    InvalidGiggyMode(String),
     #[error("transcription request must include a file field")]
     MissingTranscriptionFile,
+    #[error("Giggy transcription requires stream=true")]
+    GiggyTranscriptionRequiresStreaming,
+    #[error("Giggy transcription requires PCM16 mono 16 kHz WAV audio of at least 0.5 seconds")]
+    InvalidGiggyTranscriptionAudio,
+    #[error("Giggy upload stream ended before an admitted generation was identified")]
+    MissingGiggyGeneration,
+    #[error("Giggy upload stream contained an invalid generation or event")]
+    InvalidGiggyGeneration,
+    #[error("Giggy upload stream contained an invalid transcript event")]
+    InvalidGiggyTranscriptEvent,
+    #[error("Giggy upload stream ended in the middle of an event")]
+    IncompleteGiggyTranscriptEvent,
+    #[error("Giggy reported a failed or cancelled transcription")]
+    GiggyTranscriptionFailed,
+    #[error("Giggy canonical transcript is not available")]
+    GiggyCanonicalResultUnavailable,
+    #[error("Giggy returned an invalid signed transcript URL")]
+    InvalidGiggyTranscriptUrl,
+    #[error("Giggy returned a canonical transcript without text")]
+    InvalidGiggyCanonicalTranscript,
 }
 
 impl OpenAiProxyError {
@@ -624,8 +1227,22 @@ impl OpenAiProxyError {
             | Self::MultipartContentType(_)
             | Self::InvalidSpeechInput
             | Self::MissingVoice(_)
-            | Self::MissingTranscriptionFile => StatusCode::BAD_REQUEST,
-            Self::Upstream(_) | Self::UpstreamJson(_) => StatusCode::BAD_GATEWAY,
+            | Self::UnsupportedOutputFormat(_)
+            | Self::InvalidGiggyMode(_)
+            | Self::MissingTranscriptionFile
+            | Self::GiggyTranscriptionRequiresStreaming
+            | Self::InvalidGiggyTranscriptionAudio => StatusCode::BAD_REQUEST,
+            Self::Upstream(_)
+            | Self::UpstreamJson(_)
+            | Self::UnexpectedUpstreamContentType(_)
+            | Self::MissingGiggyGeneration
+            | Self::InvalidGiggyGeneration
+            | Self::InvalidGiggyTranscriptEvent
+            | Self::IncompleteGiggyTranscriptEvent
+            | Self::GiggyTranscriptionFailed
+            | Self::GiggyCanonicalResultUnavailable
+            | Self::InvalidGiggyTranscriptUrl
+            | Self::InvalidGiggyCanonicalTranscript => StatusCode::BAD_GATEWAY,
         }
     }
 
@@ -633,12 +1250,27 @@ impl OpenAiProxyError {
         match self {
             Self::Route(_) => "invalid_route_request",
             Self::Provider(_) => "provider_configuration_error",
-            Self::Upstream(_) | Self::UpstreamJson(_) => "upstream_error",
+            Self::Upstream(_)
+            | Self::UpstreamJson(_)
+            | Self::UnexpectedUpstreamContentType(_)
+            | Self::MissingGiggyGeneration
+            | Self::InvalidGiggyGeneration
+            | Self::InvalidGiggyTranscriptEvent
+            | Self::IncompleteGiggyTranscriptEvent
+            | Self::GiggyTranscriptionFailed
+            | Self::GiggyCanonicalResultUnavailable
+            | Self::InvalidGiggyTranscriptUrl
+            | Self::InvalidGiggyCanonicalTranscript => "upstream_error",
             Self::Multipart(_)
             | Self::MissingMultipartFieldName
             | Self::MultipartContentType(_) => "invalid_multipart_request",
-            Self::InvalidSpeechInput | Self::MissingVoice(_) => "invalid_speech_request",
-            Self::MissingTranscriptionFile => "invalid_transcription_request",
+            Self::InvalidSpeechInput
+            | Self::MissingVoice(_)
+            | Self::UnsupportedOutputFormat(_)
+            | Self::InvalidGiggyMode(_) => "invalid_speech_request",
+            Self::MissingTranscriptionFile
+            | Self::GiggyTranscriptionRequiresStreaming
+            | Self::InvalidGiggyTranscriptionAudio => "invalid_transcription_request",
         }
     }
 }
@@ -662,6 +1294,12 @@ pub fn error_response(error: OpenAiProxyError) -> (StatusCode, axum::Json<serde_
 mod tests {
     use super::*;
     use crate::config::VoicemuxConfig;
+    use futures_util::StreamExt;
+    use std::io::{Read, Write};
+    use std::net::TcpListener;
+    use std::sync::mpsc;
+    use std::thread;
+    use std::time::{Duration, Instant};
 
     fn app_state() -> AppState {
         AppState::new(
@@ -669,6 +1307,86 @@ mod tests {
                 .expect("example config should parse"),
         )
         .expect("app state should build")
+    }
+
+    #[tokio::test]
+    async fn giggy_http_client_does_not_forward_api_key_on_redirect() {
+        let target = TcpListener::bind("127.0.0.1:0").expect("target should bind");
+        target
+            .set_nonblocking(true)
+            .expect("target should be nonblocking");
+        let target_address = target.local_addr().expect("target should have an address");
+        let (seen_tx, seen_rx) = mpsc::channel();
+        let target_thread = thread::spawn(move || {
+            let deadline = Instant::now() + Duration::from_secs(2);
+            while Instant::now() < deadline {
+                match target.accept() {
+                    Ok((mut socket, _)) => {
+                        let mut request = [0; 2048];
+                        let read = socket.read(&mut request).unwrap_or(0);
+                        let _ = socket.write_all(
+                            b"HTTP/1.1 200 OK\r\nContent-Length: 0\r\nConnection: close\r\n\r\n",
+                        );
+                        let _ = seen_tx.send(request[..read].to_vec());
+                        return;
+                    }
+                    Err(error) if error.kind() == std::io::ErrorKind::WouldBlock => {
+                        thread::sleep(Duration::from_millis(10));
+                    }
+                    Err(_) => return,
+                }
+            }
+        });
+
+        let redirect = TcpListener::bind("127.0.0.1:0").expect("redirect should bind");
+        let redirect_address = redirect
+            .local_addr()
+            .expect("redirect should have an address");
+        let server = thread::spawn(move || {
+            let (mut socket, _) = redirect.accept().expect("client should connect");
+            let mut request = [0; 2048];
+            let request_bytes = socket
+                .read(&mut request)
+                .expect("request should be readable");
+            assert!(request_bytes > 0, "request should not be empty");
+            write!(
+                socket,
+                "HTTP/1.1 302 Found\r\nLocation: http://{target_address}/collect\r\nContent-Length: 0\r\nConnection: close\r\n\r\n"
+            )
+            .expect("redirect should be sent");
+        });
+
+        let response = app_state()
+            .giggy_client
+            .get(format!("http://{redirect_address}/start"))
+            .header("xi-api-key", "test-only-key")
+            .send()
+            .await
+            .expect("redirect response should be returned without following it");
+        assert_eq!(response.status(), StatusCode::FOUND);
+        server.join().expect("redirect server should finish");
+        assert!(seen_rx.recv_timeout(Duration::from_millis(100)).is_err());
+        target_thread.join().expect("target monitor should finish");
+    }
+
+    fn pcm16_wav(sample_rate: u32, channels: u16, bits_per_sample: u16, frames: usize) -> Vec<u8> {
+        let data_len = frames * channels as usize * (bits_per_sample as usize / 8);
+        let mut wav = Vec::with_capacity(44 + data_len);
+        wav.extend_from_slice(b"RIFF");
+        wav.extend_from_slice(&(36u32 + data_len as u32).to_le_bytes());
+        wav.extend_from_slice(b"WAVEfmt ");
+        wav.extend_from_slice(&16u32.to_le_bytes());
+        wav.extend_from_slice(&1u16.to_le_bytes());
+        wav.extend_from_slice(&channels.to_le_bytes());
+        wav.extend_from_slice(&sample_rate.to_le_bytes());
+        let block_align = channels * (bits_per_sample / 8);
+        wav.extend_from_slice(&(sample_rate * block_align as u32).to_le_bytes());
+        wav.extend_from_slice(&block_align.to_le_bytes());
+        wav.extend_from_slice(&bits_per_sample.to_le_bytes());
+        wav.extend_from_slice(b"data");
+        wav.extend_from_slice(&(data_len as u32).to_le_bytes());
+        wav.resize(44 + data_len, 0);
+        wav
     }
 
     #[test]
@@ -795,6 +1513,525 @@ mod tests {
         let error = OpenAiProxyError::Provider(ProviderError::MissingApiKey("elevenlabs".into()));
 
         assert!(should_fallback_error(&state, &error));
+    }
+
+    #[test]
+    fn giggy_pcm_content_type_is_exact_and_rate_checked() {
+        assert!(is_giggy_pcm_content_type("audio/pcm;rate=24000"));
+        assert!(is_giggy_pcm_content_type(
+            " Audio/PCM ; channels=1; rate=24000 "
+        ));
+        assert!(!is_giggy_pcm_content_type("audio/pcm"));
+        assert!(!is_giggy_pcm_content_type("audio/pcmx;rate=24000"));
+        assert!(!is_giggy_pcm_content_type("audio/pcm;rate=16000"));
+        assert!(!is_giggy_pcm_content_type(
+            "audio/pcm;rate=24000;rate=16000"
+        ));
+    }
+
+    #[test]
+    fn unexpected_giggy_content_type_uses_provider_fallback() {
+        let state = app_state();
+        let error = OpenAiProxyError::UnexpectedUpstreamContentType("application/json".into());
+        assert!(should_fallback_error(&state, &error));
+    }
+
+    #[test]
+    fn giggy_upstream_protocol_and_canonical_failures_use_configured_fallback() {
+        let state = app_state();
+        let errors = [
+            OpenAiProxyError::MissingGiggyGeneration,
+            OpenAiProxyError::InvalidGiggyGeneration,
+            OpenAiProxyError::InvalidGiggyTranscriptEvent,
+            OpenAiProxyError::IncompleteGiggyTranscriptEvent,
+            OpenAiProxyError::GiggyTranscriptionFailed,
+            OpenAiProxyError::GiggyCanonicalResultUnavailable,
+            OpenAiProxyError::InvalidGiggyTranscriptUrl,
+            OpenAiProxyError::InvalidGiggyCanonicalTranscript,
+        ];
+        assert!(errors
+            .iter()
+            .all(|error| should_fallback_error(&state, error)));
+    }
+
+    #[test]
+    fn giggy_stt_accepts_only_supported_pcm_wav() {
+        assert!(is_giggy_streaming_wav(&pcm16_wav(16_000, 1, 16, 8_000)));
+        assert!(!is_giggy_streaming_wav(&pcm16_wav(24_000, 1, 16, 8_000)));
+        assert!(!is_giggy_streaming_wav(&pcm16_wav(16_000, 2, 16, 8_000)));
+        assert!(!is_giggy_streaming_wav(&pcm16_wav(16_000, 1, 8, 16_000)));
+        assert!(!is_giggy_streaming_wav(&pcm16_wav(16_000, 1, 16, 7_999)));
+        let mut truncated = pcm16_wav(16_000, 1, 16, 8_000);
+        truncated.truncate(52);
+        assert!(!is_giggy_streaming_wav(&truncated));
+        let mut inconsistent_riff_size = pcm16_wav(16_000, 1, 16, 8_000);
+        inconsistent_riff_size[4..8].copy_from_slice(&u32::MAX.to_le_bytes());
+        assert!(!is_giggy_streaming_wav(&inconsistent_riff_size));
+        let mut chunks_outside_riff_boundary = pcm16_wav(16_000, 1, 16, 8_000);
+        chunks_outside_riff_boundary[4..8].copy_from_slice(&40u32.to_le_bytes());
+        assert!(!is_giggy_streaming_wav(&chunks_outside_riff_boundary));
+        let mut odd_pcm = pcm16_wav(16_000, 1, 16, 8_000);
+        odd_pcm.push(0);
+        let riff_len = (odd_pcm.len() - 8) as u32;
+        odd_pcm[4..8].copy_from_slice(&riff_len.to_le_bytes());
+        odd_pcm[40..44].copy_from_slice(&16_001u32.to_le_bytes());
+        assert!(!is_giggy_streaming_wav(&odd_pcm));
+    }
+
+    #[test]
+    fn giggy_defaults_and_validates_mode_and_output_format() {
+        assert_eq!(giggy_output_format(None, None).unwrap(), "pcm_24000");
+        assert_eq!(giggy_output_format(Some("pcm"), None).unwrap(), "pcm_24000");
+        assert_eq!(
+            giggy_output_format(Some("pcm_24000"), None).unwrap(),
+            "pcm_24000"
+        );
+        assert_eq!(giggy_mode(None).unwrap(), "streaming");
+        assert_eq!(giggy_mode(Some("streaming")).unwrap(), "streaming");
+        assert!(matches!(
+            giggy_output_format(Some("wav"), None),
+            Err(OpenAiProxyError::UnsupportedOutputFormat(_))
+        ));
+        assert!(matches!(
+            giggy_output_format(None, Some("mp3_24000_160")),
+            Err(OpenAiProxyError::UnsupportedOutputFormat(_))
+        ));
+        assert!(matches!(
+            giggy_mode(Some("fast")),
+            Err(OpenAiProxyError::InvalidGiggyMode(_))
+        ));
+    }
+
+    #[test]
+    fn builds_giggy_native_request_contract() {
+        let body = giggy_request_body(
+            "Hello world",
+            "00000000-0000-4000-8000-000000000001",
+            "streaming",
+            "pcm_24000",
+            None,
+        );
+        assert_eq!(body["text"], "Hello world");
+        assert_eq!(body["voice_id"], "00000000-0000-4000-8000-000000000001");
+        assert_eq!(body["mode"], "streaming");
+        assert_eq!(body["output_format"], "pcm_24000");
+        assert!(body.get("model_id").is_none());
+
+        let compat_body = giggy_request_body(
+            "Hi",
+            "voice-id",
+            "streaming",
+            "pcm_24000",
+            Some("giggyspeech"),
+        );
+        assert_eq!(compat_body["model_id"], "giggyspeech");
+    }
+
+    #[tokio::test]
+    async fn forwards_giggy_audio_chunks_before_upstream_completes() {
+        let listener = TcpListener::bind("127.0.0.1:0").expect("mock server should bind");
+        let address = listener
+            .local_addr()
+            .expect("mock server should have an address");
+        let server = std::thread::spawn(move || {
+            let (mut socket, _) = listener.accept().expect("mock client should connect");
+            let mut request = [0; 1024];
+            let request_bytes = socket
+                .read(&mut request)
+                .expect("request should be readable");
+            assert!(request_bytes > 0, "mock request should not be empty");
+            socket
+                .write_all(
+                    b"HTTP/1.1 200 OK\r\nTransfer-Encoding: chunked\r\nContent-Type: audio/pcm;rate=24000\r\nConnection: close\r\n\r\n4\r\nABCD\r\n",
+                )
+                .expect("first audio chunk should be sent");
+            socket.flush().expect("first chunk should be flushed");
+            std::thread::sleep(Duration::from_millis(300));
+            socket
+                .write_all(b"4\r\nEFGH\r\n0\r\n\r\n")
+                .expect("final audio chunk should be sent");
+        });
+
+        let upstream = reqwest::Client::new()
+            .get(format!("http://{address}/audio"))
+            .send()
+            .await
+            .expect("mock response should arrive");
+        let plan = RoutePlan {
+            profile: "live".to_string(),
+            modality: Modality::Tts,
+            route: vec!["giggy".to_string()],
+            selected_provider: "giggy".to_string(),
+            resolved_model: Some("giggyspeech".to_string()),
+            resolved_voice: Some("voice-id".to_string()),
+            response_format: Some("pcm".to_string()),
+        };
+        let response = response_from_upstream_stream(upstream, "audio/pcm;rate=24000", &plan)
+            .await
+            .expect("streaming response should be constructed");
+        assert_eq!(response.status(), StatusCode::OK);
+        assert_eq!(
+            response.headers()[header::CONTENT_TYPE],
+            "audio/pcm;rate=24000"
+        );
+
+        let mut audio = response.into_body().into_data_stream();
+        let first = audio
+            .next()
+            .await
+            .expect("first chunk should arrive")
+            .expect("first chunk should be valid");
+        assert_eq!(first.as_ref(), b"ABCD");
+        assert!(
+            tokio::time::timeout(Duration::from_millis(100), audio.next())
+                .await
+                .is_err()
+        );
+        let second = audio
+            .next()
+            .await
+            .expect("second chunk should arrive")
+            .expect("second chunk should be valid");
+        assert_eq!(second.as_ref(), b"EFGH");
+        server.join().expect("mock server should finish");
+    }
+
+    #[tokio::test]
+    async fn uploaded_stt_replaces_draft_with_canonical_text_after_keyed_status_and_keyless_fetch()
+    {
+        let listener = TcpListener::bind("127.0.0.1:0").expect("mock server should bind");
+        let address = listener
+            .local_addr()
+            .expect("mock server should have an address");
+        let generation_uuid = "00000000-0000-4000-8000-000000000001".to_string();
+        let server_generation = generation_uuid.clone();
+        let server = std::thread::spawn(move || {
+            let (mut socket, _) = listener.accept().expect("mock client should connect");
+            let mut request = [0; 4096];
+            let request_bytes = socket
+                .read(&mut request)
+                .expect("request should be readable");
+            assert!(
+                request_bytes > 0,
+                "mock upload stream request should not be empty"
+            );
+            let admitted = format!(
+                "event: generation_created\ndata: {{\"generation\":{{\"generation_uuid\":\"{server_generation}\",\"status\":\"processing\"}}}}\n\n"
+            );
+            let preview =
+                b"event: transcript_chunk\ndata: {\"text\":\"draft preview\",\"replace\":true}\n\n";
+            socket
+                .write_all(
+                    format!(
+                        "HTTP/1.1 200 OK\r\nTransfer-Encoding: chunked\r\nContent-Type: text/event-stream\r\nConnection: close\r\n\r\n{:X}\r\n",
+                        admitted.len()
+                    )
+                    .as_bytes(),
+                )
+                .expect("SSE response header should be sent");
+            socket
+                .write_all(admitted.as_bytes())
+                .expect("admission event should be sent");
+            socket
+                .write_all(b"\r\n")
+                .expect("admission chunk should end");
+            socket.flush().expect("admission event should flush");
+            socket
+                .write_all(format!("{:X}\r\n", preview.len()).as_bytes())
+                .expect("preview chunk header should be sent");
+            socket
+                .write_all(preview)
+                .expect("draft preview should be sent");
+            socket.write_all(b"\r\n").expect("preview chunk should end");
+            socket.flush().expect("preview should flush");
+            thread::sleep(Duration::from_millis(250));
+            socket.write_all(b"0\r\n\r\n").expect("SSE should complete");
+            drop(socket);
+
+            let (mut status_socket, _) = listener.accept().expect("status GET should connect");
+            let mut status_request = [0; 4096];
+            let status_len = status_socket
+                .read(&mut status_request)
+                .expect("status request should be readable");
+            let status_headers =
+                String::from_utf8_lossy(&status_request[..status_len]).to_ascii_lowercase();
+            assert!(status_headers.contains("xi-api-key: test-only-key"));
+            let status_body = format!(
+                "{{\"generation\":{{\"generation_uuid\":\"{server_generation}\",\"status\":\"completed\",\"result\":{{\"url\":\"http://{address}/signed/transcript.json?token=fixture\"}}}}}}"
+            );
+            write!(
+                status_socket,
+                "HTTP/1.1 200 OK\r\nContent-Type: application/json\r\nContent-Length: {}\r\nConnection: close\r\n\r\n{}",
+                status_body.len(), status_body
+            )
+            .expect("completed status should be sent");
+            drop(status_socket);
+
+            let (mut artifact_socket, _) = listener
+                .accept()
+                .expect("signed artifact GET should connect");
+            let mut artifact_request = [0; 4096];
+            let artifact_len = artifact_socket
+                .read(&mut artifact_request)
+                .expect("artifact request should be readable");
+            let artifact_headers =
+                String::from_utf8_lossy(&artifact_request[..artifact_len]).to_ascii_lowercase();
+            assert!(artifact_headers.starts_with("get /signed/transcript.json?token=fixture"));
+            assert!(!artifact_headers.contains("xi-api-key:"));
+            let artifact_body = r#"{"text":"canonical result only"}"#;
+            write!(
+                artifact_socket,
+                "HTTP/1.1 200 OK\r\nContent-Type: application/json\r\nContent-Length: {}\r\nConnection: close\r\n\r\n{}",
+                artifact_body.len(), artifact_body
+            )
+            .expect("text-only signed artifact should be sent");
+        });
+
+        let upstream = reqwest::Client::new()
+            .get(format!("http://{address}/transcriptions"))
+            .send()
+            .await
+            .expect("mock response should arrive");
+        let plan = RoutePlan {
+            profile: "live".to_string(),
+            modality: Modality::Stt,
+            route: vec!["giggy".to_string()],
+            selected_provider: "giggy".to_string(),
+            resolved_model: Some("giggyspeech".to_string()),
+            resolved_voice: None,
+            response_format: None,
+        };
+        let response = response_from_upstream_event_stream(
+            upstream,
+            &plan,
+            reqwest::Client::builder()
+                .redirect(reqwest::redirect::Policy::none())
+                .build()
+                .expect("test client should build"),
+            "test-only-key".to_string(),
+            Url::parse(&format!("http://{address}/v1/")).unwrap(),
+            true,
+        )
+        .await
+        .expect("streaming response should be constructed");
+        assert_eq!(response.status(), StatusCode::OK);
+        assert!(response.headers()[header::CONTENT_TYPE]
+            .to_str()
+            .unwrap()
+            .starts_with("text/event-stream"));
+
+        let mut events = response.into_body().into_data_stream();
+        let admission = events.next().await.unwrap().unwrap();
+        assert!(String::from_utf8_lossy(&admission).contains("generation_created"));
+        let preview = events.next().await.unwrap().unwrap();
+        assert!(String::from_utf8_lossy(&preview).contains("draft preview"));
+        assert!(
+            tokio::time::timeout(Duration::from_millis(100), events.next())
+                .await
+                .is_err()
+        );
+        let canonical = events.next().await.unwrap().unwrap();
+        let canonical = String::from_utf8_lossy(&canonical);
+        assert!(canonical.contains("canonical result only"));
+        assert!(!canonical.contains("draft preview"));
+        assert!(canonical.contains("generation_updated"));
+        assert!(canonical.contains(&generation_uuid));
+        assert!(events.next().await.is_none());
+        server.join().expect("mock server should finish");
+    }
+
+    #[tokio::test]
+    async fn canonical_artifact_redirect_is_rejected_before_target_contact() {
+        let target = TcpListener::bind("127.0.0.1:0").expect("redirect target should bind");
+        target
+            .set_nonblocking(true)
+            .expect("redirect target should be nonblocking");
+        let target_address = target.local_addr().expect("target should have an address");
+        let (seen_tx, seen_rx) = mpsc::channel();
+        let target_thread = thread::spawn(move || {
+            let deadline = Instant::now() + Duration::from_secs(1);
+            while Instant::now() < deadline {
+                match target.accept() {
+                    Ok((mut socket, _)) => {
+                        let mut request = [0; 1024];
+                        let length = socket.read(&mut request).unwrap_or(0);
+                        let _ = seen_tx.send(request[..length].to_vec());
+                        return;
+                    }
+                    Err(error) if error.kind() == std::io::ErrorKind::WouldBlock => {
+                        thread::sleep(Duration::from_millis(10));
+                    }
+                    Err(_) => return,
+                }
+            }
+        });
+
+        let redirect_listener =
+            TcpListener::bind("127.0.0.1:0").expect("redirect response server should bind");
+        let redirect_address = redirect_listener
+            .local_addr()
+            .expect("redirect server should have an address");
+        let redirect_thread = thread::spawn(move || {
+            let (mut socket, _) = redirect_listener
+                .accept()
+                .expect("artifact request should reach redirect server");
+            let mut request = [0; 1024];
+            let length = socket
+                .read(&mut request)
+                .expect("redirect request should read");
+            assert!(length > 0);
+            write!(
+                socket,
+                "HTTP/1.1 302 Found\r\nLocation: http://{target_address}/redirected\r\nContent-Length: 0\r\nConnection: close\r\n\r\n"
+            )
+            .expect("redirect response should write");
+        });
+
+        let status_listener = TcpListener::bind("127.0.0.1:0").expect("status server should bind");
+        let status_address = status_listener
+            .local_addr()
+            .expect("status server should have an address");
+        let server_generation = "00000000-0000-4000-8000-000000000002".to_string();
+        let server_generation_copy = server_generation.clone();
+        let status_thread = thread::spawn(move || {
+            let (mut socket, _) = status_listener
+                .accept()
+                .expect("status request should connect");
+            let mut request = [0; 4096];
+            let length = socket
+                .read(&mut request)
+                .expect("status request should read");
+            let headers = String::from_utf8_lossy(&request[..length]).to_ascii_lowercase();
+            assert!(headers.contains("xi-api-key: test-only-key"));
+            let payload = format!(
+                "{{\"generation\":{{\"generation_uuid\":\"{server_generation_copy}\",\"status\":\"completed\",\"result\":{{\"url\":\"http://{redirect_address}/result\"}}}}}}"
+            );
+            write!(
+                socket,
+                "HTTP/1.1 200 OK\r\nContent-Type: application/json\r\nContent-Length: {}\r\nConnection: close\r\n\r\n{}",
+                payload.len(), payload
+            )
+            .expect("status body should write");
+        });
+
+        let client = reqwest::Client::builder()
+            .redirect(reqwest::redirect::Policy::none())
+            .build()
+            .expect("client should build");
+        let result = fetch_giggy_canonical_text(
+            &client,
+            "test-only-key",
+            &server_generation,
+            &Url::parse(&format!("http://{status_address}/v1/")).unwrap(),
+            true,
+        )
+        .await;
+        assert!(matches!(
+            result,
+            Err(OpenAiProxyError::GiggyCanonicalResultUnavailable)
+        ));
+        status_thread.join().expect("status thread should finish");
+        redirect_thread
+            .join()
+            .expect("redirect server should finish");
+        assert!(seen_rx.recv_timeout(Duration::from_millis(100)).is_err());
+        target_thread.join().expect("target monitor should finish");
+    }
+
+    #[tokio::test]
+    async fn dropping_upload_sse_body_closes_upstream_before_canonical_followups() {
+        let listener = TcpListener::bind("127.0.0.1:0").expect("mock server should bind");
+        let address = listener
+            .local_addr()
+            .expect("mock server should have an address");
+        let (closed_tx, closed_rx) = mpsc::channel();
+        let server = thread::spawn(move || {
+            let (mut socket, _) = listener.accept().expect("upload request should connect");
+            let mut request = [0; 4096];
+            let length = socket
+                .read(&mut request)
+                .expect("upload request should read");
+            assert!(length > 0);
+            let id = "00000000-0000-4000-8000-000000000003";
+            let admission = format!(
+                "event: generation_created\ndata: {{\"generation\":{{\"generation_uuid\":\"{id}\"}}}}\n\n"
+            );
+            let preview =
+                b"event: transcript_chunk\ndata: {\"text\":\"draft\",\"replace\":true}\n\n";
+            write!(
+                socket,
+                "HTTP/1.1 200 OK\r\nTransfer-Encoding: chunked\r\nContent-Type: text/event-stream\r\n\r\n{:X}\r\n{}\r\n{:X}\r\n{}\r\n",
+                admission.len(), admission, preview.len(), String::from_utf8_lossy(preview)
+            )
+            .expect("SSE preview should be sent");
+            socket.flush().expect("SSE preview should flush");
+            socket
+                .set_read_timeout(Some(Duration::from_secs(2)))
+                .expect("disconnect wait should be bounded");
+            let mut byte = [0; 1];
+            let disconnected = match socket.read(&mut byte) {
+                Ok(0) => true,
+                Ok(_) => false,
+                Err(error) => matches!(
+                    error.kind(),
+                    std::io::ErrorKind::ConnectionReset
+                        | std::io::ErrorKind::ConnectionAborted
+                        | std::io::ErrorKind::BrokenPipe
+                        | std::io::ErrorKind::UnexpectedEof
+                ),
+            };
+            let _ = closed_tx.send(disconnected);
+        });
+
+        let upstream = reqwest::Client::new()
+            .get(format!("http://{address}/transcriptions"))
+            .send()
+            .await
+            .expect("mock response should arrive");
+        let plan = RoutePlan {
+            profile: "live".to_string(),
+            modality: Modality::Stt,
+            route: vec!["giggy".to_string()],
+            selected_provider: "giggy".to_string(),
+            resolved_model: None,
+            resolved_voice: None,
+            response_format: None,
+        };
+        let response = response_from_upstream_event_stream(
+            upstream,
+            &plan,
+            reqwest::Client::builder()
+                .redirect(reqwest::redirect::Policy::none())
+                .build()
+                .unwrap(),
+            "test-only-key".to_string(),
+            Url::parse(&format!("http://{address}/v1/")).unwrap(),
+            true,
+        )
+        .await
+        .unwrap();
+        let mut body = response.into_body().into_data_stream();
+        assert!(
+            String::from_utf8_lossy(&body.next().await.unwrap().unwrap())
+                .contains("generation_created")
+        );
+        assert!(String::from_utf8_lossy(&body.next().await.unwrap().unwrap()).contains("draft"));
+        drop(body);
+        let closed =
+            tokio::task::spawn_blocking(move || closed_rx.recv_timeout(Duration::from_secs(3)))
+                .await
+                .expect("disconnect observer should finish")
+                .expect("upstream should observe downstream cancellation");
+        assert!(closed);
+        server.join().expect("mock server should finish");
+    }
+
+    #[test]
+    fn production_signed_artifact_urls_require_https_and_reject_credentials() {
+        assert!(signed_artifact_url("https://artifact.example/result?sig=x", false).is_ok());
+        assert!(signed_artifact_url("http://127.0.0.1/result", false).is_err());
+        assert!(signed_artifact_url("https://user:pass@artifact.example/result", false).is_err());
+        assert!(signed_artifact_url("https://artifact.example/result#fragment", false).is_err());
     }
 
     #[test]

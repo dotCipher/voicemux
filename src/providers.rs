@@ -20,6 +20,7 @@ pub enum ProviderAdapter {
     OpenAi(OpenAiAdapter),
     DeepgramStt(NativeAdapter),
     ElevenlabsTts(NativeAdapter),
+    GiggyTts(NativeAdapter),
 }
 
 impl ProviderAdapter {
@@ -38,13 +39,20 @@ impl ProviderAdapter {
                 ProviderType::ElevenlabsTts,
                 config,
             ))),
+            ProviderType::GiggyTts => Ok(Self::GiggyTts(NativeAdapter::new(
+                name,
+                ProviderType::GiggyTts,
+                config,
+            ))),
         }
     }
 
     pub fn descriptor(&self) -> ProviderDescriptor {
         let mut descriptor = match self {
             Self::OpenAi(adapter) => adapter.descriptor(),
-            Self::DeepgramStt(adapter) | Self::ElevenlabsTts(adapter) => adapter.descriptor(),
+            Self::DeepgramStt(adapter) | Self::ElevenlabsTts(adapter) | Self::GiggyTts(adapter) => {
+                adapter.descriptor()
+            }
         };
         descriptor.supports_stt = self.supports_modality(Modality::Stt);
         descriptor.supports_tts = self.supports_modality(Modality::Tts);
@@ -54,7 +62,7 @@ impl ProviderAdapter {
     pub fn supports_modality(&self, modality: Modality) -> bool {
         match self {
             Self::OpenAi(adapter) => adapter.supports_modality(modality),
-            Self::DeepgramStt(adapter) | Self::ElevenlabsTts(adapter) => {
+            Self::DeepgramStt(adapter) | Self::ElevenlabsTts(adapter) | Self::GiggyTts(adapter) => {
                 adapter.supports_modality(modality)
             }
         }
@@ -72,7 +80,7 @@ impl ProviderAdapter {
                 provider: adapter.name.clone(),
                 endpoint: "/v1/audio/speech",
             }),
-            Self::DeepgramStt(adapter) | Self::ElevenlabsTts(adapter) => {
+            Self::DeepgramStt(adapter) | Self::ElevenlabsTts(adapter) | Self::GiggyTts(adapter) => {
                 Err(ProviderError::UnsupportedPassthrough {
                     provider: adapter.name.clone(),
                     endpoint: "/v1/audio/speech",
@@ -93,7 +101,7 @@ impl ProviderAdapter {
                 provider: adapter.name.clone(),
                 endpoint: "/v1/audio/transcriptions",
             }),
-            Self::DeepgramStt(adapter) | Self::ElevenlabsTts(adapter) => {
+            Self::DeepgramStt(adapter) | Self::ElevenlabsTts(adapter) | Self::GiggyTts(adapter) => {
                 Err(ProviderError::UnsupportedPassthrough {
                     provider: adapter.name.clone(),
                     endpoint: "/v1/audio/transcriptions",
@@ -187,6 +195,7 @@ pub struct NativeAdapter {
     model: Option<String>,
     language: Option<String>,
     output_format: Option<String>,
+    mode: Option<String>,
     smart_format: Option<bool>,
     punctuate: Option<bool>,
     tags: Vec<String>,
@@ -202,6 +211,7 @@ impl NativeAdapter {
             model: config.model.clone(),
             language: config.language.clone(),
             output_format: config.output_format.clone(),
+            mode: config.mode.clone(),
             smart_format: config.smart_format,
             punctuate: config.punctuate,
             tags: config.tags.clone(),
@@ -239,6 +249,10 @@ impl NativeAdapter {
         self.output_format.as_deref()
     }
 
+    pub fn mode(&self) -> Option<&str> {
+        self.mode.as_deref()
+    }
+
     pub fn smart_format(&self) -> Option<bool> {
         self.smart_format
     }
@@ -249,8 +263,14 @@ impl NativeAdapter {
 
     fn supports_modality(&self, modality: Modality) -> bool {
         match modality {
-            Modality::Stt => matches!(self.provider_type, ProviderType::DeepgramStt),
-            Modality::Tts => matches!(self.provider_type, ProviderType::ElevenlabsTts),
+            Modality::Stt => matches!(
+                self.provider_type,
+                ProviderType::DeepgramStt | ProviderType::GiggyTts
+            ),
+            Modality::Tts => matches!(
+                self.provider_type,
+                ProviderType::ElevenlabsTts | ProviderType::GiggyTts
+            ),
         }
     }
 
@@ -325,6 +345,46 @@ mod tests {
         assert!(!adapters["deepgram"].supports_modality(Modality::Tts));
         assert!(!adapters["local_kokoro"].supports_modality(Modality::Stt));
         assert!(adapters["local_kokoro"].supports_modality(Modality::Tts));
+    }
+
+    #[test]
+    fn configures_giggy_as_a_native_tts_provider() {
+        let config = VoicemuxConfig::from_yaml(
+            r#"
+active_profile: test
+profiles:
+  test:
+    stt: [giggy]
+    tts: [giggy]
+providers:
+  local_whisper:
+    type: openai_stt
+    base_url: http://127.0.0.1:2022/v1
+  giggy:
+    type: giggy_tts
+    api_key_env: GIGGY_API_KEY
+    model: giggyspeech
+    mode: streaming
+    output_format: pcm_24000
+aliases:
+  voices:
+    assistant:
+      giggy: 00000000-0000-4000-8000-000000000001
+"#,
+        )
+        .expect("Giggy config should parse and validate");
+        let adapters = build_provider_adapters(&config).expect("Giggy adapter should build");
+        let giggy = &adapters["giggy"];
+
+        assert!(giggy.supports_modality(Modality::Tts));
+        assert!(giggy.supports_modality(Modality::Stt));
+        assert_eq!(giggy.descriptor().provider_type, ProviderType::GiggyTts);
+        let ProviderAdapter::GiggyTts(native) = giggy else {
+            panic!("expected Giggy native adapter");
+        };
+        assert_eq!(native.mode(), Some("streaming"));
+        assert_eq!(native.model(), Some("giggyspeech"));
+        assert_eq!(native.output_format(), Some("pcm_24000"));
     }
 
     #[test]
